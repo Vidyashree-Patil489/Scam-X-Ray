@@ -1,5 +1,12 @@
-from predictor import get_ml_score
-from rule_engine import get_rule_analysis
+import os
+import sys
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _BASE_DIR not in sys.path:
+    sys.path.insert(0, _BASE_DIR)
+
+from services.predictor import get_ml_score
+from services.rule_engine import get_rule_analysis
 
 cases = {
     "indian fee scam (software-flavoured)": "Hiring Python developer intern. Work from home. Pay Rs 500 registration fee for training kit. Contact on WhatsApp only. Join today.",

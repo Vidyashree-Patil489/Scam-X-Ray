@@ -1,8 +1,17 @@
+import os
 import pickle
 import numpy as np
 
-m = pickle.load(open("model.pkl", "rb"))
-v = pickle.load(open("vectorizer.pkl", "rb"))
+# Resolve path to backend/models/
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_PATH = os.path.join(_BASE_DIR, "models", "model.pkl")
+VECTORIZER_PATH = os.path.join(_BASE_DIR, "models", "vectorizer.pkl")
+
+with open(MODEL_PATH, "rb") as f:
+    m = pickle.load(f)
+with open(VECTORIZER_PATH, "rb") as f:
+    v = pickle.load(f)
+
 print("classes:", m.classes_)
 
 names = np.array(v.get_feature_names_out())

@@ -1,0 +1,1 @@
+"""ScamXRay application domain services."""

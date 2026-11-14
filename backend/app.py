@@ -5,11 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from rule_engine import get_rule_analysis
-from predictor import get_ml_score
-from url_analyzer import analyze_url_comprehensive
-from analyzer import get_claude_explanation, get_url_ai_explanation
-from category_classifier import classify_threat
+from services.rule_engine import get_rule_analysis
+from services.predictor import get_ml_score
+from services.url_analyzer import analyze_url_comprehensive
+from services.analyzer import get_claude_explanation, get_url_ai_explanation
+from services.category_classifier import classify_threat
 
 app = Flask(__name__)
 CORS(app)

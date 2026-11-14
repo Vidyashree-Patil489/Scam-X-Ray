@@ -1,11 +1,13 @@
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
 
 import unittest
 from unittest.mock import patch
 import json
-from url_analyzer import (
+from services.url_analyzer import (
     analyze_url,
     extract_threat_indicators,
     compute_threat_score,
@@ -13,7 +15,7 @@ from url_analyzer import (
     check_server_connectivity,
     RESERVED_EXAMPLE_DOMAINS
 )
-from analyzer import get_url_ai_explanation, validate_url_ai_output
+from services.analyzer import get_url_ai_explanation, validate_url_ai_output
 from app import app, compute_text_composite_score, WEIGHT_RULES, WEIGHT_AI, WEIGHT_ML
 
 
@@ -100,11 +102,11 @@ class URLRegressionTests(unittest.TestCase):
         """Test 7: https://example-unknown-shop.com/?id=7f3a9c2e with DNS/RDAP/TLS all failing
         -> Unverified with 'checks failed', NOT Suspicious"""
         url = "https://example-unknown-shop.com/?id=7f3a9c2e"
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN")), \
-             patch('url_analyzer.check_tls_cert', return_value=(False, {"valid": False}, "Connection refused")), \
-             patch('url_analyzer.check_domain_age', return_value=(False, False, "RDAP failed")), \
-             patch('url_analyzer.check_http_reachability', return_value=(False, "Unreachable")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(False, {"valid": False}, "Connection refused")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(False, False, "RDAP failed")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(False, "Unreachable")):
             res = analyze_url(url, execute_network=True)
             self.assertEqual(res["threat_score"], 0)
             self.assertEqual(res["verdict"], "Unverified")
@@ -114,11 +116,11 @@ class URLRegressionTests(unittest.TestCase):
         """Test 8: Same URL with mocked valid TLS, 5-year domain age, resolves, no indicators
         -> Likely Legitimate"""
         url = "https://example-unknown-shop.com/?id=7f3a9c2e"
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved to 93.184.216.34")), \
-             patch('url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid certificate for domain")), \
-             patch('url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2019)")), \
-             patch('url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved to 93.184.216.34")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid certificate for domain")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2019)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
             res = analyze_url(url, execute_network=True)
             self.assertEqual(res["threat_score"], 0)
             self.assertEqual(res["verdict"], "Likely Legitimate")
@@ -193,7 +195,7 @@ class URLRegressionTests(unittest.TestCase):
 
     def test_14_ai_strip_visual_claims(self):
         """Test 14: strip_visual_claims removes statements asserting visual flaws an OCR text extractor cannot see"""
-        from analyzer import strip_visual_claims
+        from services.analyzer import strip_visual_claims
         explanation = (
             "The message promises rapid employment with no interview required. "
             "The official company logo appears blurry and the letterhead design is amateurish. "
@@ -233,11 +235,11 @@ class URLRegressionTests(unittest.TestCase):
             "https://pineapple-recipes.com",
             "https://applebees.com"
         ]
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
-             patch('url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
-             patch('url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2015)")), \
-             patch('url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2015)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             for cand in candidates:
                 res = analyze_url(cand, execute_network=True)
                 lookalike_ids = [i["id"] for i in res["indicators"] if "lookalike" in i["id"] or "spoof" in i["id"]]
@@ -255,11 +257,11 @@ class URLRegressionTests(unittest.TestCase):
             "https://forms.gle/abc",
             "https://t.me/channel"
         ]
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
-             patch('url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
-             patch('url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2015)")), \
-             patch('url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2015)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             for u in user_content_urls:
                 res = analyze_url(u, execute_network=True)
                 self.assertEqual(res["verdict"], "Unverified", f"{u} must be Unverified")
@@ -276,11 +278,11 @@ class URLRegressionTests(unittest.TestCase):
     def test_d_new_domain_age_scoring(self):
         """Test d: Clean domain with mocked age 3 days -> Unverified, new_domain, score 25.
         Same domain with a brand token plus security word -> Suspicious"""
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
-             patch('url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
-             patch('url_analyzer.check_domain_age', return_value=(True, False, "Newly registered (3 days ago)")), \
-             patch('url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, False, "Newly registered (3 days ago)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             # Clean domain
             res_clean = analyze_url("https://clean-innovative-tech.com", execute_network=True)
             self.assertEqual(res_clean["verdict"], "Unverified")
@@ -295,11 +297,11 @@ class URLRegressionTests(unittest.TestCase):
     def test_e_paypal_subdomain_spoof_age_label(self):
         """Test e: paypal.com.secure-login.xyz with mocked age 3 -> Suspicious;
         label reads 'Newly registered (3 days ago)', never 'Established'"""
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
-             patch('url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
-             patch('url_analyzer.check_domain_age', return_value=(True, False, "Newly registered (3 days ago)")), \
-             patch('url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, False, "Newly registered (3 days ago)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             res = analyze_url("https://paypal.com.secure-login.xyz/verify", execute_network=True)
             self.assertEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
             age_check = next(c for c in res["verification_checks"] if c["name"] == "Domain Age (RDAP)")
@@ -324,8 +326,8 @@ class URLRegressionTests(unittest.TestCase):
     def test_g_safe_looking_explanation_never_says_reserved(self):
         """Test g: Explanation for safe-looking.com never contains 'reserved';
         skipped checks are not_performed with specific reasons"""
-        with patch('url_analyzer.check_server_connectivity', return_value=True), \
-             patch('url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN")):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN")):
             res = analyze_url("https://safe-looking.com/?next=https://evil.com", execute_network=True)
             self.assertEqual(res["verdict"], "Unverified")
 
@@ -354,7 +356,7 @@ class URLRegressionTests(unittest.TestCase):
     def test_h_simulated_no_network_server(self):
         """Test h: Simulated no-network server -> all checks not_performed with
         'Verification unavailable: no network from the server', no domain blame"""
-        with patch('url_analyzer.check_server_connectivity', return_value=False):
+        with patch('services.url_analyzer.check_server_connectivity', return_value=False):
             res = analyze_url("https://unknown-site.org/portal", execute_network=True)
             self.assertEqual(res["verdict"], "Unverified")
             self.assertEqual(res["threat_score"], 0)
@@ -373,7 +375,7 @@ class URLRegressionTests(unittest.TestCase):
 
     def test_fixtures_a_through_e(self):
         """Test Fixtures A through E with exact OCR noise and legitimate-context guards"""
-        from rule_engine import get_rule_analysis
+        from services.rule_engine import get_rule_analysis
 
         fixture_a = """lo EARNS: we have
 received your job application from
@@ -453,7 +455,7 @@ Reply to this email to confirm. - Meena S, HR, Zoho Corporation"""
 
     def test_fixtures_f_through_i(self):
         """Test Fixtures F through I: Domain mismatch and adversarial recruitment checks"""
-        from rule_engine import get_rule_analysis
+        from services.rule_engine import get_rule_analysis
 
         # Fixture F: Spoofed domain + address + whatsapp
         fixture_f = (
@@ -511,7 +513,7 @@ Reply to this email to confirm. - Meena S, HR, Zoho Corporation"""
 
     def test_ocr_noise_variants_fixture_a(self):
         """Test OCR noise variants of Fixture A to verify rule resilience against OCR imperfections"""
-        from rule_engine import get_rule_analysis
+        from services.rule_engine import get_rule_analysis
 
         variant_1 = (
             "lo EARNS: we have\n"

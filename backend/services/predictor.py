@@ -1,9 +1,10 @@
 import pickle
 import os
 
-# Define paths for saved model and vectorizer
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
-VECTORIZER_PATH = os.path.join(os.path.dirname(__file__), "vectorizer.pkl")
+# Define paths for saved model and vectorizer relative to backend root
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_PATH = os.path.join(_BASE_DIR, "models", "model.pkl")
+VECTORIZER_PATH = os.path.join(_BASE_DIR, "models", "vectorizer.pkl")
 
 # Global variables to store loaded model and vectorizer (lazy loading)
 _model = None
@@ -21,12 +22,14 @@ def _load():
         # Check if model file exists
         if not os.path.exists(MODEL_PATH):
             raise FileNotFoundError(
-                "model.pkl not found. Run train_model.py first."
+                f"model.pkl not found at {MODEL_PATH}."
             )
 
-        # Load model and vectorizer from disk
-        _model = pickle.load(open(MODEL_PATH, "rb"))
-        _vectorizer = pickle.load(open(VECTORIZER_PATH, "rb"))
+        # Load model and vectorizer from disk safely with context manager
+        with open(MODEL_PATH, "rb") as f_model:
+            _model = pickle.load(f_model)
+        with open(VECTORIZER_PATH, "rb") as f_vec:
+            _vectorizer = pickle.load(f_vec)
 
 def get_ml_score(text: str) -> int:
     """

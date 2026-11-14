@@ -4,3 +4,4 @@ python-dotenv
 groq
 scikit-learn==1.7.2
 gunicorn
+tldextract==5.4.0

@@ -1,24 +1,27 @@
 # Node
+node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/.vercel/
 frontend/.env
 
 # Python
+__pycache__/
+*.pyc
 backend/__pycache__/
 backend/*.pyc
+backend/**/__pycache__/
+backend/**/*.pyc
 backend/.env
 backend/venv/
-ml/__pycache__/
-ml/*.pyc
-
-# ML model files (large)
-ml/model.pkl
-ml/vectorizer.pkl
+venv/
+.venv/
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# API keys — NEVER push these
+# API keys & secrets — NEVER commit these
 .env
 *.env
+backend/.env
