@@ -1,69 +1,142 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ZapIcon } from './Icons';
 
-export default function Navbar() {
-  const navigate = useNavigate();
+const ROUTE_TITLES = {
+  '/dashboard': 'Threat Intelligence Dashboard',
+  '/scam-detection': 'Scam Detection Suite',
+  '/analyzer': 'Scam Detection Suite',
+  '/results': 'Analysis Report',
+  '/ai-image-detection': 'AI Image Detection & Forensics',
+  '/steganography': 'Steganography & Payload Scanner',
+  '/fact-checker': 'Fact Checker & Verification Engine',
+  '/history': 'Scan History & Reports',
+  '/security-awareness': 'Security Awareness & Prevention',
+  '/settings': 'Platform Settings',
+  '/about': 'About ScamXRay',
+};
+
+export default function Navbar({ mobileOpen, setMobileOpen }) {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const links = [
-    { label: 'Home', path: '/' },
-    { label: 'Analyzer', path: '/analyzer' },
-    { label: 'About', path: '/about' },
-  ];
+  const currentTitle = ROUTE_TITLES[location.pathname] || 'Digital Threat Intelligence';
 
   return (
-    <nav style={{
-      position: 'sticky', top: 0, zIndex: 100,
-      background: 'rgba(255,255,255,0.85)',
-      backdropFilter: 'blur(20px)',
-      borderBottom: '1px solid rgba(99,102,241,0.1)',
-      padding: '0 32px',
-      display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between', height: 64,
-    }}>
-      {/* Logo */}
-      <div
-        onClick={() => navigate('/')}
-        style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
-      >
-        <div className="floating" style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: 'linear-gradient(135deg, #667eea, #764ba2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 18, boxShadow: '0 4px 16px rgba(102,126,234,0.4)'
-        }}>🛡️</div>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>
-          <span style={{ color: '#667eea' }}>Scam</span>
-          <span style={{ color: '#0f172a' }}>XRay</span>
-        </span>
-      </div>
+    <header
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        height: 68,
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(99, 102, 241, 0.14)',
+        padding: '0 28px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        transition: 'all 0.25s ease',
+      }}
+    >
+      {/* Left section: Hamburger (mobile) + Page Title */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="navbar-mobile-toggle"
+          title="Toggle Navigation"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: '1px solid rgba(99, 102, 241, 0.18)',
+            background: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontSize: 16,
+            color: '#475569',
+            boxShadow: '0 1px 4px rgba(99, 102, 241, 0.05)',
+          }}
+        >
+          ☰
+        </button>
 
-      {/* Links */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        {links.map(link => (
-          <button
-            key={link.path}
-            onClick={() => navigate(link.path)}
+        <div>
+          <h1
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '8px 16px', borderRadius: 8, fontFamily: 'Inter, sans-serif',
-              fontSize: 14, fontWeight: 500,
-              color: location.pathname === link.path ? '#667eea' : '#64748b',
-              borderBottom: location.pathname === link.path ? '2px solid #667eea' : '2px solid transparent',
-              transition: 'all 0.2s'
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'clamp(15px, 2vw, 18px)',
+              fontWeight: 700,
+              color: '#0f172a',
+              letterSpacing: '-0.02em',
+              margin: 0,
+              lineHeight: 1.2,
             }}
           >
-            {link.label}
-          </button>
-        ))}
+            {currentTitle}
+          </h1>
+          <span
+            style={{
+              fontSize: 11,
+              color: '#94a3b8',
+              fontWeight: 500,
+              display: 'inline-block',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            AI-Powered Digital Threat Intelligence
+          </span>
+        </div>
+      </div>
+
+      {/* Right section: System Status + Quick Scan Button */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          className="navbar-status-pill"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            background: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: 20,
+            padding: '5px 12px',
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: '#059669',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#10b981',
+              boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)',
+            }}
+          />
+          Engine Ready
+        </div>
 
         <button
           className="btn-primary"
-          onClick={() => navigate('/analyzer')}
-          style={{ marginLeft: 12, padding: '9px 20px', fontSize: 13 }}
+          onClick={() => navigate('/scam-detection')}
+          style={{
+            padding: '8px 18px',
+            fontSize: 12.5,
+            borderRadius: 30,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
         >
-          Start Analyzing
+          <ZapIcon size={14} color="#ffffff" />
+          <span>Quick Scan</span>
         </button>
       </div>
-    </nav>
+    </header>
   );
 }

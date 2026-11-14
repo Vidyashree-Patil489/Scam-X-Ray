@@ -1,63 +1,57 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOCR } from '../hooks/useOCR';
+import {
+  MessageSquareIcon,
+  GlobeIcon,
+  ImageIcon,
+  ArrowRightIcon,
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  RefreshCwIcon,
+  ShieldIcon
+} from '../components/Icons';
 
 const API_URL = 'http://127.0.0.1:5000/analyze';
 
-const DATASETS = [
-  { label: 'Load a test dataset...', value: '' },
+const TEST_DATASETS = [
+  { label: 'Select a sample to test...', value: '' },
   {
-    label: '🚨 WhatsApp Scam (Fee + Gmail)',
-    value: 'Hiring freshers for WFH data entry. Salary 45000/month. No experience needed. Contact: jobsoffer2024@gmail.com. Pay ₹500 registration fee to confirm your slot. Apply within 24 hours or offer expires. WhatsApp only: +91 99999 88888',
+    label: '🚨 WhatsApp Smishing (Registration Fee + Telegram)',
+    value: 'Urgent opening: WFH Data Entry Associate. Earn ₹45,000/month. No experience needed. Pay ₹500 refundable registration fee to activate server account. WhatsApp only: +91 98765 43210. Limited slots, apply within 24 hours!',
   },
   {
-    label: '🚨 Telegram Crypto Scam',
-    value: 'Urgent opening: Crypto trading analyst. Earn ₹80,000/week from home. No degree required. Contact us on Telegram now. Limited seats. Pay ₹1000 security deposit refundable after joining. No interview required.',
+    label: '🚨 Telegram Crypto Task Scam',
+    value: 'Part-time opportunity: Simple YouTube video likes and rating tasks. Earn ₹3,000 to ₹5,000 per day payout same day. Contact manager on Telegram @cryptotasks_hr. No degree required. Deposit ₹1,000 to unlock VIP tasks.',
   },
   {
-    label: '🚨 Freelance Scam',
-    value: 'Work from home data entry job. Earn ₹500 per form filled. No experience needed. Pay ₹200 registration. Unlimited earning. No target. Join today. Contact on WhatsApp only. Offer valid 24 hours only.',
+    label: '🚨 Banking KYC Phishing Lure',
+    value: 'Dear Customer, your HDFC net banking account is blocked due to incomplete KYC. Verify your bank account immediately by clicking the link or your account will be suspended within 24 hours. Contact customer support.',
   },
   {
-    label: '✅ Legit: TCS Software Job',
-    value: 'Tata Consultancy Services is hiring Software Engineers with 3+ years of experience in Java and Spring Boot. CTC: 8-12 LPA. Location: Bangalore/Hyderabad. Apply at careers.tcs.com. HR contact: recruitment@tcs.com. No fees required.',
-  },
-  {
-    label: '✅ Legit: Razorpay Internship',
-    value: 'Internship opportunity at Razorpay — Product Design (6 months, paid ₹20,000/month stipend). Work on real payment products. Required: Figma skills and portfolio. Apply at razorpay.com/careers. Email: internships@razorpay.com. No fees charged.',
+    label: '✅ Legit: Tech Recruitment Offer',
+    value: 'Tata Consultancy Services is hiring Software Engineers with 3+ years experience in Java, Spring Boot, and PostgreSQL. Apply directly at our official careers portal https://careers.tcs.com. No registration fees are ever charged at any stage.',
   },
 ];
 
 function normalizeFlags(flags) {
   if (!Array.isArray(flags)) return [];
-
   return flags.map((flag) => {
     if (typeof flag === 'string') {
       return { text: flag, severity: 'HIGH' };
     }
-
     return {
-      ...flag,
-      text:
-        flag.text ||
-        flag.message ||
-        flag.description ||
-        'Potential risk indicator',
+      text: flag.text || flag.message || flag.description || flag.name || 'Potential risk indicator',
       severity: String(flag.severity || 'HIGH').toUpperCase(),
     };
   });
 }
 
 function normalizeScore(value) {
-  if (value === null || value === undefined || value === '') {
-    return null;
-  }
-
+  if (value === null || value === undefined || value === '') return null;
   const score = Number(value);
-
   if (!Number.isFinite(score)) return null;
-
-  return Math.max(0, Math.min(100, score));
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function getRiskLevel(score) {
@@ -66,27 +60,63 @@ function getRiskLevel(score) {
   return 'HIGH';
 }
 
+function getRiskTheme(level) {
+  switch (level) {
+    case 'LOW':
+      return {
+        label: 'Low Risk',
+        color: '#10b981',
+        bg: '#ecfdf5',
+        border: '#a7f3d0',
+        badgeBg: 'rgba(16, 185, 129, 0.12)',
+        description: 'Few or no common scam indicators detected. Practice standard digital caution.',
+      };
+    case 'MEDIUM':
+      return {
+        label: 'Medium Risk',
+        color: '#d97706',
+        bg: '#fffbeb',
+        border: '#fde68a',
+        badgeBg: 'rgba(217, 119, 6, 0.12)',
+        description: 'Suspicious indicators detected. Independently verify the sender before taking action.',
+      };
+    case 'HIGH':
+    default:
+      return {
+        label: 'High Risk Detected',
+        color: '#ef4444',
+        bg: '#fef2f2',
+        border: '#fecaca',
+        badgeBg: 'rgba(239, 68, 68, 0.12)',
+        description: 'Strong fraud indicators detected. Do not share funds, OTPs, or sensitive credentials.',
+      };
+  }
+}
+
 export default function Analyzer() {
   const navigate = useNavigate();
   const fileRef = useRef(null);
   const previewUrlRef = useRef(null);
 
-  const {
-    extractText,
-    progress,
-    isLoading: ocrLoading,
-    error,
-  } = useOCR();
+  // Active analysis mode tab: 'text' | 'url' | 'image'
+  const [activeTab, setActiveTab] = useState('text');
 
-  const [text, setText] = useState('');
-  const [url, setUrl] = useState('');
-  const [inputType, setInputType] = useState('Text / Message');
+  // Input states
+  const [textInput, setTextInput] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [preview, setPreview] = useState(null);
-  const [ocrText, setOcrText] = useState('');
-  const [requestError, setRequestError] = useState('');
 
+  // OCR state hook
+  const { extractText, progress: ocrProgress, isLoading: ocrLoading, error: ocrHookError } = useOCR();
+  const [ocrExtractedText, setOcrExtractedText] = useState('');
+
+  // Analysis status
+  const [analyzing, setAnalyzing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [analysisResult, setAnalysisResult] = useState(null);
+
+  // Revoke object URLs on unmount
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
@@ -95,22 +125,32 @@ export default function Analyzer() {
     };
   }, []);
 
-  const handleDataset = (event) => {
-    const selectedText = event.target.value;
+  // Handle Tab Switch
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab);
+    setErrorMessage('');
+  };
 
-    if (selectedText) {
-      setText(selectedText);
-      setInputType('Text / Message');
-      setOcrText('');
-      setRequestError('');
+  // Preset Dataset Handler
+  const handleDatasetSelect = (e) => {
+    const val = e.target.value;
+    if (val) {
+      setTextInput(val);
+      setErrorMessage('');
     }
   };
 
-  const handleFile = async (file) => {
+  // Image Upload Handler
+  const handleImageFile = async (file) => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setRequestError('Please upload an image file, such as PNG or JPG.');
+      setErrorMessage('Please upload a valid image file (PNG, JPG, JPEG, or WEBP).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage('File size exceeds 10MB limit. Please upload a smaller screenshot.');
       return;
     }
 
@@ -120,636 +160,783 @@ export default function Analyzer() {
 
     const imageUrl = URL.createObjectURL(file);
     previewUrlRef.current = imageUrl;
-
-    setPreview(imageUrl);
-    setOcrText('');
-    setRequestError('');
-    setInputType('Screenshot OCR');
+    setSelectedImage(imageUrl);
+    setOcrExtractedText('');
+    setErrorMessage('');
 
     try {
       const extracted = await extractText(file);
-      const extractedText = String(extracted || '').trim();
+      const clean = String(extracted || '').trim();
+      setOcrExtractedText(clean);
 
-      setOcrText(extractedText);
-      setText(extractedText);
-
-      if (!extractedText) {
-        setRequestError(
-          'No readable text was found. Try a clearer screenshot or enter the message manually.'
-        );
+      if (!clean) {
+        setErrorMessage('No readable text found in this image. Try a clearer screenshot or paste the text manually.');
       }
-    } catch (ocrError) {
-      console.error('OCR error:', ocrError);
-      setRequestError(
-        'Could not extract text from this screenshot. Please try another image or paste the message manually.'
-      );
+    } catch {
+      setErrorMessage('Could not extract text from this screenshot. Please try another image or paste manually.');
     }
   };
 
-  const handleAnalyze = async () => {
+  // Core Analysis Submission (Preserves /analyze backend workflow exactly)
+  const executeAnalysis = async (contentPayload) => {
+    const { text = '', url = '' } = contentPayload;
     const cleanText = text.trim();
     const cleanUrl = url.trim();
 
     if (!cleanText && !cleanUrl) {
-      setRequestError('Please enter a message, job description, or URL to analyze.');
+      setErrorMessage('Please provide message text or a URL to analyze.');
       return;
     }
 
-    if (analyzing) return;
-
     setAnalyzing(true);
-    setRequestError('');
+    setErrorMessage('');
 
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: cleanText,
           url: cleanUrl,
+          input_type: activeTab === 'image' ? 'ocr' : activeTab,
         }),
       });
 
       let data;
-
       try {
         data = await response.json();
       } catch {
-        throw new Error('The backend returned an invalid response.');
+        throw new Error('Backend returned an unparseable response.');
       }
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            data?.message ||
-            `Analysis failed with status ${response.status}.`
-        );
+        throw new Error(data?.error || data?.message || `Analysis failed with HTTP status ${response.status}.`);
       }
 
       const ruleScore = normalizeScore(data.rule_score);
       const mlScore = normalizeScore(data.ml_score);
       const urlScore = normalizeScore(data.url_score);
-
-      const riskScore =
-        normalizeScore(data.risk_score) ??
-        normalizeScore(data.score) ??
-        Math.max(
-          ruleScore ?? 0,
-          mlScore ?? 0,
-          urlScore ?? 0
-        );
-
+      const riskScore = normalizeScore(data.risk_score) ?? Math.max(ruleScore ?? 0, mlScore ?? 0, urlScore ?? 0);
       const riskLevel = getRiskLevel(riskScore);
 
-      const safetyTips = Array.isArray(data.safety_tips)
-        ? data.safety_tips
-        : Array.isArray(data.tips)
-          ? data.tips
-          : [];
-
-      const detectedInputType = cleanUrl
-        ? cleanText
-          ? 'URL + Text'
-          : 'URL'
-        : inputType;
-
-      const result = {
+      const parsedResult = {
         ...data,
-
         risk_score: riskScore,
         risk_level: riskLevel,
-
         rule_score: ruleScore,
         ml_score: mlScore,
         url_score: urlScore,
-
         rule_flags: normalizeFlags(data.rule_flags),
         url_flags: normalizeFlags(data.url_flags),
+        categories: Array.isArray(data.categories) ? data.categories : [],
+        explanation: data.explanation || 'Automated analysis completed. Review the detected indicators below.',
+        safety_tips: Array.isArray(data.safety_tips) ? data.safety_tips : [],
+        scannedText: cleanText,
+        scannedUrl: cleanUrl,
+        analysisMode: activeTab,
+      };
 
-        categories: Array.isArray(data.categories)
-          ? data.categories
-          : [],
+      setAnalysisResult(parsedResult);
 
-        input_type: detectedInputType,
-
-        explanation:
-          data.explanation ||
-          data.ai_explanation ||
-          data.llm_explanation ||
-          'Analysis completed. Review the detected indicators and verify the source independently.',
-
-        tips: safetyTips,
-        safety_tips: safetyTips,
-
+      const finalResult = {
+        ...parsedResult,
+        input_type: activeTab === 'text' ? 'Text / Message' : activeTab === 'url' ? 'URL' : 'Screenshot OCR',
         jobText: cleanText,
-        text: cleanText,
         url: cleanUrl,
       };
 
-      navigate('/results', {
-        state: { result },
-      });
-    } catch (analysisError) {
-      console.error('Backend error:', analysisError);
+      try {
+        sessionStorage.setItem('scamxray_last_result', JSON.stringify(finalResult));
+      } catch {
+        // ignore storage errors
+      }
 
-      setRequestError(
-        analysisError.message ||
-          'Could not connect to the backend. Make sure python app.py is running.'
-      );
+      navigate('/results', {
+        state: {
+          result: finalResult,
+        },
+      });
+    } catch (err) {
+      setErrorMessage(err.message || 'Could not connect to the backend server at http://127.0.0.1:5000.');
     } finally {
       setAnalyzing(false);
     }
   };
 
-  const handleTextChange = (event) => {
-    setText(event.target.value);
-    setInputType('Text / Message');
-    setOcrText('');
-    setRequestError('');
+  // Handlers for specific tab submissions
+  const handleAnalyzeText = () => executeAnalysis({ text: textInput, url: '' });
+  const handleAnalyzeUrl = () => executeAnalysis({ text: '', url: urlInput });
+  const handleAnalyzeImage = () => executeAnalysis({ text: ocrExtractedText, url: '' });
+
+  // Reset scan to start another investigation
+  const handleResetScan = () => {
+    setAnalysisResult(null);
+    setErrorMessage('');
   };
 
   return (
-    <div style={{ minHeight: '100vh', padding: '48px 24px' }}>
-      <div style={{ maxWidth: 850, margin: '0 auto' }}>
-        <div className="fade-up" style={{ marginBottom: 40 }}>
-          <div
-            style={{
-              display: 'inline-block',
-              background: 'linear-gradient(135deg, #667eea22, #764ba222)',
-              borderRadius: 8,
-              padding: '4px 12px',
-              marginBottom: 12,
-              fontSize: 12,
-              fontWeight: 700,
-              color: '#667eea',
-              letterSpacing: '0.1em',
-            }}
-          >
-            SCAMXRAY ANALYZER
-          </div>
-
-          <h1
-            style={{
-              fontSize: 36,
-              fontWeight: 900,
-              marginBottom: 8,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Analyze a Suspicious Message
-          </h1>
-
-          <p
-            style={{
-              fontSize: 15,
-              color: '#64748b',
-              maxWidth: 600,
-              lineHeight: 1.8,
-            }}
-          >
-            Check messages, job postings, and suspicious URLs for potential
-            scam indicators. You can also upload a screenshot to extract its text.
-          </p>
+    <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* ─────────────────────────────────────────────────────────────
+          1. PAGE HEADER
+      ───────────────────────────────────────────────────────────── */}
+      <div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#6366f1', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+          <ShieldIcon size={13} color="#6366f1" />
+          <span>Core Detection Engine</span>
         </div>
-
-        <div
-          className="card fade-up delay-1"
-          style={{ padding: 32, marginBottom: 22 }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 12,
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>📄</span>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: '#667eea',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Text / Message Analysis
-              </span>
-            </div>
-
-            <select
-              defaultValue=""
-              onChange={handleDataset}
-              style={{
-                maxWidth: '100%',
-                padding: '9px 12px',
-                borderRadius: 10,
-                fontSize: 12,
-                border: '1.5px solid rgba(99,102,241,0.2)',
-                background: '#fff',
-                color: '#334155',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                outline: 'none',
-              }}
-            >
-              {DATASETS.map((dataset, index) => (
-                <option key={index} value={dataset.value}>
-                  {dataset.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <textarea
-            value={text}
-            onChange={handleTextChange}
-            rows={9}
-            placeholder="Paste a suspicious SMS, email, job posting, or other message here..."
-            style={{
-              boxSizing: 'border-box',
-              width: '100%',
-              borderRadius: 14,
-              padding: '16px 18px',
-              border: '1.5px solid rgba(99,102,241,0.15)',
-              background: '#f8f7ff',
-              color: '#0f172a',
-              fontSize: 14,
-              resize: 'vertical',
-              outline: 'none',
-              fontFamily: 'inherit',
-              lineHeight: 1.7,
-            }}
-            onFocus={(event) => {
-              event.target.style.borderColor = '#667eea';
-            }}
-            onBlur={(event) => {
-              event.target.style.borderColor = 'rgba(99,102,241,0.15)';
-            }}
-          />
-
-          <div style={{ marginTop: 18 }}>
-            <label
-              htmlFor="suspicious-url"
-              style={{
-                display: 'block',
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#667eea',
-                letterSpacing: '0.06em',
-                marginBottom: 9,
-              }}
-            >
-              🔗 URL ANALYSIS (OPTIONAL)
-            </label>
-
-            <input
-              id="suspicious-url"
-              type="url"
-              value={url}
-              onChange={(event) => {
-                setUrl(event.target.value);
-                setRequestError('');
-              }}
-              placeholder="https://example.com"
-              style={{
-                boxSizing: 'border-box',
-                width: '100%',
-                padding: '14px 16px',
-                borderRadius: 12,
-                border: '1.5px solid rgba(99,102,241,0.2)',
-                background: '#fff',
-                color: '#0f172a',
-                fontSize: 14,
-                fontFamily: 'inherit',
-                outline: 'none',
-              }}
-            />
-
-            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>
-              Enter a URL to send it to the backend along with your message.
-              URL risk scoring requires backend support.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 14,
-              marginTop: 20,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 12,
-                color: '#d97706',
-                fontWeight: 500,
-                margin: 0,
-              }}
-            >
-              💡 Tip: Include the complete message for better analysis.
-            </p>
-
-            <button
-              className="btn-primary"
-              onClick={handleAnalyze}
-              disabled={analyzing || (!text.trim() && !url.trim()) || ocrLoading}
-              style={{
-                opacity:
-                  analyzing || (!text.trim() && !url.trim()) || ocrLoading
-                    ? 0.55
-                    : 1,
-                cursor:
-                  analyzing || (!text.trim() && !url.trim()) || ocrLoading
-                    ? 'not-allowed'
-                    : 'pointer',
-              }}
-            >
-              {analyzing ? '⚙️ Analyzing...' : '✨ Analyze Now'}
-            </button>
-          </div>
-        </div>
-
-        <div
-          className="card fade-up delay-2"
-          style={{ padding: 28, marginBottom: 22 }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: 16,
-            }}
-          >
-            <span style={{ fontSize: 18 }}>📸</span>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: '#667eea',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Screenshot Analysis (OCR)
-            </span>
-          </div>
-
-          <div
-            onClick={() => fileRef.current?.click()}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragOver(false);
-              handleFile(event.dataTransfer.files[0]);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                fileRef.current?.click();
-              }
-            }}
-            style={{
-              border: `2px dashed ${
-                dragOver ? '#667eea' : 'rgba(99,102,241,0.25)'
-              }`,
-              borderRadius: 14,
-              padding: '28px 20px',
-              textAlign: 'center',
-              cursor: 'pointer',
-              background: dragOver ? 'rgba(99,102,241,0.05)' : '#f8f7ff',
-              transition: 'all 0.2s',
-            }}
-          >
-            {preview ? (
-              <img
-                src={preview}
-                alt="Screenshot preview"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: 180,
-                  objectFit: 'contain',
-                  borderRadius: 8,
-                  marginBottom: 8,
-                }}
-              />
-            ) : (
-              <div style={{ fontSize: 34, marginBottom: 8 }}>🖼️</div>
-            )}
-
-            <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0' }}>
-              {preview
-                ? 'Click to replace the screenshot'
-                : 'Drag and drop or click to upload a screenshot'}
-            </p>
-
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>
-              WhatsApp, SMS, email, Telegram, or job-posting screenshots
-            </p>
-          </div>
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            style={{ display: 'none' }}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) handleFile(file);
-              event.target.value = '';
-            }}
-          />
-
-          {ocrLoading && (
-            <div style={{ marginTop: 16 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 12,
-                  marginBottom: 7,
-                  color: '#64748b',
-                }}
-              >
-                <span>Extracting text using OCR...</span>
-                <strong style={{ color: '#667eea' }}>{progress}%</strong>
-              </div>
-
-              <div
-                style={{
-                  height: 7,
-                  borderRadius: 5,
-                  background: '#e2e8f0',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    borderRadius: 5,
-                    background: 'linear-gradient(90deg, #667eea, #764ba2)',
-                    width: `${progress}%`,
-                    transition: 'width 0.3s',
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {ocrText && !ocrLoading && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: 14,
-                borderRadius: 10,
-                background: '#f0fdf4',
-                border: '1px solid #86efac',
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: '#16a34a',
-                  margin: '0 0 7px',
-                }}
-              >
-                ✓ Text extracted successfully
-              </p>
-
-              <p
-                style={{
-                  fontSize: 12,
-                  color: '#166534',
-                  lineHeight: 1.7,
-                  margin: 0,
-                  overflowWrap: 'anywhere',
-                }}
-              >
-                {ocrText.length > 240
-                  ? `${ocrText.slice(0, 240)}...`
-                  : ocrText}
-              </p>
-
-              <p style={{ fontSize: 11, color: '#15803d', margin: '10px 0 0' }}>
-                The extracted text is placed in the message field. Click Analyze Now to continue.
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: 14,
-                borderRadius: 10,
-                background: '#fef2f2',
-                border: '1px solid #fca5a5',
-              }}
-            >
-              <p style={{ fontSize: 12, color: '#dc2626', margin: 0 }}>
-                ⚠️ {error}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {requestError && (
-          <div
-            role="alert"
-            style={{
-              marginBottom: 20,
-              padding: 15,
-              borderRadius: 12,
-              background: '#fef2f2',
-              border: '1px solid #fca5a5',
-              color: '#b91c1c',
-              fontSize: 13,
-              lineHeight: 1.7,
-            }}
-          >
-            ⚠️ {requestError}
-          </div>
-        )}
-
-        {analyzing && (
-          <div
-            className="fade-up"
-            style={{ textAlign: 'center', padding: '40px 0' }}
-          >
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                border: '3px solid #e2e8f0',
-                borderTopColor: '#667eea',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite',
-                margin: '0 auto 16px',
-              }}
-            />
-
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>
-              Analyzing your submission...
-            </p>
-
-            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-              Rule Engine → ML Model → AI Analysis
-            </p>
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                marginTop: 24,
-                opacity: 0.4,
-              }}
-            >
-              {[100, 75, 88].map((width, index) => (
-                <div
-                  key={index}
-                  className="skeleton"
-                  style={{
-                    height: 12,
-                    width: `${width}%`,
-                    margin: '0 auto',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        <p
+        <h1
           style={{
-            textAlign: 'center',
-            fontSize: 12,
-            color: '#94a3b8',
-            marginTop: 24,
-            lineHeight: 1.8,
+            fontFamily: 'var(--font-heading)',
+            fontSize: 'clamp(22px, 2.5vw, 28px)',
+            fontWeight: 800,
+            color: '#0f172a',
+            letterSpacing: '-0.025em',
+            margin: '0 0 6px',
+            lineHeight: 1.25,
           }}
         >
-          🔒 Avoid sharing real passwords, OTPs, or sensitive personal details.
-          Verify important messages independently.
+          Scam Detection
+        </h1>
+        <p
+          style={{
+            fontSize: 14.5,
+            color: '#64748b',
+            margin: 0,
+            maxWidth: 680,
+            lineHeight: 1.6,
+          }}
+        >
+          Analyse suspicious messages, URLs and screenshots to identify potential digital threats.
         </p>
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          2. UNIFIED RESULTS VIEW (If a scan is completed)
+      ───────────────────────────────────────────────────────────── */}
+      {analysisResult ? (
+        <div className="card fade-up" style={{ padding: '32px 36px', background: '#ffffff', border: '1px solid rgba(99, 102, 241, 0.16)' }}>
+          {(() => {
+            const theme = getRiskTheme(analysisResult.risk_level);
+            return (
+              <>
+                {/* Result Header Banner */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 16,
+                    paddingBottom: 24,
+                    borderBottom: '1px solid rgba(99, 102, 241, 0.12)',
+                    marginBottom: 26,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 12,
+                        background: theme.bg,
+                        border: `1.5px solid ${theme.border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: theme.color,
+                        fontWeight: 900,
+                        fontSize: 20,
+                      }}
+                    >
+                      {analysisResult.risk_level === 'LOW' ? (
+                        <CheckCircleIcon size={24} color={theme.color} />
+                      ) : (
+                        <AlertTriangleIcon size={24} color={theme.color} />
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: theme.color, fontFamily: 'var(--font-heading)' }}>
+                          {theme.label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: 12,
+                            background: theme.badgeBg,
+                            color: theme.color,
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          {analysisResult.risk_score} / 100
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                        {theme.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleResetScan}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      background: '#f8f7ff',
+                      border: '1px solid rgba(99, 102, 241, 0.2)',
+                      borderRadius: 30,
+                      padding: '9px 18px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#475569',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <RefreshCwIcon size={13} color="#475569" />
+                    <span>Start Another Scan</span>
+                  </button>
+                </div>
+
+                {/* Score Breakdown Metrics Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+                    gap: 14,
+                    marginBottom: 26,
+                  }}
+                >
+                  <div style={{ padding: '14px 16px', background: '#faf9ff', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>
+                      Rule Heuristics
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+                      {analysisResult.rule_score ?? '—'} <span style={{ fontSize: 11, color: '#94a3b8' }}>/ 100</span>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px 16px', background: '#faf9ff', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>
+                      ML Model Probability
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+                      {analysisResult.ml_score ?? '—'} <span style={{ fontSize: 11, color: '#94a3b8' }}>/ 100</span>
+                    </div>
+                  </div>
+
+                  {analysisResult.url_score !== null && analysisResult.url_score > 0 && (
+                    <div style={{ padding: '14px 16px', background: '#faf9ff', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>
+                        URL Structural Risk
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+                        {analysisResult.url_score} <span style={{ fontSize: 11, color: '#94a3b8' }}>/ 100</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ padding: '14px 16px', background: '#faf9ff', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>
+                      Scan Mode
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#6366f1', textTransform: 'capitalize', marginTop: 3 }}>
+                      {analysisResult.analysisMode} Analysis
+                    </div>
+                  </div>
+                </div>
+
+                {/* Explanation Section */}
+                <div style={{ marginBottom: 24 }}>
+                  <h3 style={{ fontSize: 14.5, fontWeight: 700, color: '#0f172a', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span>Analysis Summary</span>
+                  </h3>
+                  <div
+                    style={{
+                      padding: 16,
+                      background: '#f8f7ff',
+                      borderRadius: 10,
+                      border: '1px solid rgba(99, 102, 241, 0.14)',
+                      fontSize: 13.5,
+                      lineHeight: 1.7,
+                      color: '#334155',
+                    }}
+                  >
+                    {analysisResult.explanation}
+                  </div>
+                </div>
+
+                {/* Detected Red Flags & Indicators */}
+                {(analysisResult.rule_flags?.length > 0 || analysisResult.url_flags?.length > 0) && (
+                  <div style={{ marginBottom: 24 }}>
+                    <h3 style={{ fontSize: 14.5, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
+                      Detected Indicators ({analysisResult.rule_flags.length + analysisResult.url_flags.length})
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[...analysisResult.rule_flags, ...analysisResult.url_flags].map((flag, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            background: '#fff7f7',
+                            border: '1px solid #fee2e2',
+                            fontSize: 13,
+                            color: '#991b1b',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <AlertTriangleIcon size={15} color="#ef4444" />
+                            <span>{flag.text}</span>
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', padding: '2px 8px', borderRadius: 10, color: '#b91c1c' }}>
+                            {flag.severity}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommended Safety Precautions */}
+                {analysisResult.safety_tips?.length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: 14.5, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>
+                      Safety Recommendations
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {analysisResult.safety_tips.map((tip, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 10,
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            background: '#f0fdf4',
+                            border: '1px solid #dcfce7',
+                            fontSize: 13,
+                            color: '#166534',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          <CheckCircleIcon size={16} color="#16a34a" />
+                          <span>{tip}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      ) : (
+        /* ─────────────────────────────────────────────────────────────
+            3. UNIFIED 3-IN-1 SCANNER TAB INTERFACE
+        ───────────────────────────────────────────────────────────── */
+        <div className="card fade-up" style={{ padding: '28px 32px', background: '#ffffff', border: '1px solid rgba(99, 102, 241, 0.16)' }}>
+          {/* Navigation Tabs Header */}
+          <div
+            style={{
+              display: 'flex',
+              borderBottom: '1px solid rgba(99, 102, 241, 0.14)',
+              gap: 8,
+              marginBottom: 24,
+            }}
+          >
+            <button
+              onClick={() => handleTabSwitch('text')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 18px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === 'text' ? '2.5px solid #6366f1' : '2.5px solid transparent',
+                color: activeTab === 'text' ? '#6366f1' : '#64748b',
+                fontFamily: 'var(--font-heading)',
+                fontSize: 14,
+                fontWeight: activeTab === 'text' ? 700 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <MessageSquareIcon size={17} color="currentColor" />
+              <span>Text Analysis</span>
+            </button>
+
+            <button
+              onClick={() => handleTabSwitch('url')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 18px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === 'url' ? '2.5px solid #6366f1' : '2.5px solid transparent',
+                color: activeTab === 'url' ? '#6366f1' : '#64748b',
+                fontFamily: 'var(--font-heading)',
+                fontSize: 14,
+                fontWeight: activeTab === 'url' ? 700 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <GlobeIcon size={17} color="currentColor" />
+              <span>URL Analysis</span>
+            </button>
+
+            <button
+              onClick={() => handleTabSwitch('image')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 18px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === 'image' ? '2.5px solid #6366f1' : '2.5px solid transparent',
+                color: activeTab === 'image' ? '#6366f1' : '#64748b',
+                fontFamily: 'var(--font-heading)',
+                fontSize: 14,
+                fontWeight: activeTab === 'image' ? 700 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <ImageIcon size={17} color="currentColor" />
+              <span>Image Analysis (OCR)</span>
+            </button>
+          </div>
+
+          {/* Error Message Alert */}
+          {errorMessage && (
+            <div
+              style={{
+                padding: '12px 16px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 10,
+                color: '#b91c1c',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 20,
+              }}
+            >
+              <AlertTriangleIcon size={16} color="#ef4444" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* ─────────────────────────────────────────────────────────────
+              TAB A: TEXT ANALYSIS
+          ───────────────────────────────────────────────────────────── */}
+          {activeTab === 'text' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                  Suspicious Message or Job Description
+                </label>
+                <select
+                  defaultValue=""
+                  onChange={handleDatasetSelect}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                    fontSize: 12,
+                    background: '#f8f7ff',
+                    color: '#475569',
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {TEST_DATASETS.map((d, i) => (
+                    <option key={i} value={d.value}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <textarea
+                value={textInput}
+                onChange={(e) => {
+                  setTextInput(e.target.value);
+                  setErrorMessage('');
+                }}
+                rows={8}
+                placeholder="Paste a suspicious SMS, WhatsApp message, recruitment email, job posting or payment request here..."
+                style={{
+                  width: '100%',
+                  borderRadius: 10,
+                  border: '1.5px solid rgba(99, 102, 241, 0.18)',
+                  padding: '14px 16px',
+                  fontSize: 13.5,
+                  lineHeight: 1.6,
+                  color: '#0f172a',
+                  background: '#faf9ff',
+                  outline: 'none',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                  {textInput.length} characters
+                </span>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {textInput && (
+                    <button
+                      onClick={() => setTextInput('')}
+                      style={{
+                        padding: '9px 16px',
+                        borderRadius: 30,
+                        border: '1px solid rgba(99, 102, 241, 0.2)',
+                        background: '#ffffff',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    onClick={handleAnalyzeText}
+                    disabled={analyzing || !textInput.trim()}
+                    className="btn-primary"
+                    style={{
+                      padding: '10px 24px',
+                      fontSize: 13,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      opacity: analyzing || !textInput.trim() ? 0.6 : 1,
+                      cursor: analyzing || !textInput.trim() ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <span>{analyzing ? 'Analyzing Message...' : 'Analyse Text'}</span>
+                    <ArrowRightIcon size={14} color="#ffffff" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─────────────────────────────────────────────────────────────
+              TAB B: URL ANALYSIS
+          ───────────────────────────────────────────────────────────── */}
+          {activeTab === 'url' && (
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>
+                Website or Link Address to Examine
+              </label>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 260, position: 'relative' }}>
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={(e) => {
+                      setUrlInput(e.target.value);
+                      setErrorMessage('');
+                    }}
+                    placeholder="https://verify-account-update.xyz/login"
+                    style={{
+                      width: '100%',
+                      borderRadius: 10,
+                      border: '1.5px solid rgba(99, 102, 241, 0.18)',
+                      padding: '12px 16px',
+                      fontSize: 13.5,
+                      color: '#0f172a',
+                      background: '#faf9ff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleAnalyzeUrl}
+                  disabled={analyzing || !urlInput.trim()}
+                  className="btn-primary"
+                  style={{
+                    padding: '12px 24px',
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    opacity: analyzing || !urlInput.trim() ? 0.6 : 1,
+                    cursor: analyzing || !urlInput.trim() ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <span>{analyzing ? 'Analyzing URL...' : 'Analyse URL'}</span>
+                  <ArrowRightIcon size={14} color="#ffffff" />
+                </button>
+              </div>
+
+              <div style={{ marginTop: 14, fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+                💡 Analyzes domain TLDs, punycode disguises, brand impersonation substrings, and path anomalies without visiting or executing the destination.
+              </div>
+            </div>
+          )}
+
+          {/* ─────────────────────────────────────────────────────────────
+              TAB C: IMAGE ANALYSIS (OCR)
+          ───────────────────────────────────────────────────────────── */}
+          {activeTab === 'image' && (
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>
+                Upload Screenshot (WhatsApp, SMS, Telegram, or Job Posting)
+              </label>
+
+              <div
+                onClick={() => fileRef.current?.click()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  handleImageFile(e.dataTransfer.files[0]);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                style={{
+                  border: `2px dashed ${dragOver ? '#6366f1' : 'rgba(99, 102, 241, 0.25)'}`,
+                  borderRadius: 12,
+                  padding: '32px 20px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: dragOver ? 'rgba(99, 102, 241, 0.05)' : '#faf9ff',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {selectedImage ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <img
+                      src={selectedImage}
+                      alt="Uploaded Screenshot"
+                      style={{ maxHeight: 180, maxWidth: '100%', objectFit: 'contain', borderRadius: 8, marginBottom: 12, border: '1px solid rgba(99, 102, 241, 0.15)' }}
+                    />
+                    <span style={{ fontSize: 12, color: '#6366f1', fontWeight: 600 }}>
+                      Click or drag to replace screenshot
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, color: '#6366f1' }}>
+                      <ImageIcon size={36} color="#6366f1" />
+                    </div>
+                    <p style={{ fontSize: 13.5, fontWeight: 600, color: '#334155', margin: '0 0 4px' }}>
+                      Drag and drop an image screenshot here, or click to browse
+                    </p>
+                    <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+                      Supports PNG, JPG, JPEG up to 10MB
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImageFile(f);
+                  e.target.value = '';
+                }}
+              />
+
+              {/* OCR Progress Meter */}
+              {ocrLoading && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 6 }}>
+                    <span>Extracting text from screenshot via OCR...</span>
+                    <strong style={{ color: '#6366f1' }}>{ocrProgress}%</strong>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 10, background: '#e2e8f0', overflow: 'hidden' }}>
+                    <div style={{ width: `${ocrProgress}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #ec4899)', transition: 'width 0.25s' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* OCR Extracted Text Preview & Action */}
+              {ocrExtractedText && !ocrLoading && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
+                      ✓ Text Extracted from Image
+                    </span>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                      {ocrExtractedText.length} characters
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      color: '#166534',
+                      lineHeight: 1.6,
+                      maxHeight: 120,
+                      overflowY: 'auto',
+                      marginBottom: 16,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {ocrExtractedText}
+                  </div>
+
+                  <button
+                    onClick={handleAnalyzeImage}
+                    disabled={analyzing}
+                    className="btn-primary"
+                    style={{
+                      padding: '10px 24px',
+                      fontSize: 13,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <span>{analyzing ? 'Analyzing Extracted Text...' : 'Analyse Extracted Text'}</span>
+                    <ArrowRightIcon size={14} color="#ffffff" />
+                  </button>
+                </div>
+              )}
+
+              {ocrHookError && !ocrLoading && (
+                <div style={{ marginTop: 12, fontSize: 12, color: '#dc2626' }}>
+                  ⚠️ {ocrHookError}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,952 @@
+{
+  "guard_on": {
+    "A": {
+      "categories": [
+        "job",
+        "phishing"
+      ],
+      "classification_criteria": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Anonymous recruiter or vague job portal: matched 'Online Job Portal'",
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web\nDeveloper'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'",
+        "Withheld interview address or venue: matched 'Venue: Will be provided after\nsharing your updated CV.\nShare your CV'"
+      ],
+      "explanation": "The message is a classic example of a job scam. It pressures you to act quickly with a next‑day interview, says the interview venue will be given only after you share your CV, and asks you to send your CV via WhatsApp to a personal number – all typical tactics to lure victims. The job titles are listed together in a casual way and the recruiter is only identified as “Online Job Portal,” which gives no real identity or company name. There is no company address, official email, or any verifiable contact details. Before replying or sending any personal information, you should verify the company’s existence by searching for the official website or contacting the company through a known phone number or email. Also, check if the phone number belongs to a legitimate business and confirm the interview details through a reliable source. Finally, do not share your CV or any sensitive data over WhatsApp or any other chat app until you have confirmed the authenticity of the offer.",
+      "indicators": null,
+      "jobText": "lo EARNS: we have\nreceived your job application from\nOnline Job Portal.\nYou are invited to proceed with\nthe next step for the position\nof Software Developer, Web\nDeveloper, Graphic Designer.\nInterview Time: Tomorrow 10:30\nAM.\nVenue: Will be provided after\nsharing your updated CV.\nShare your CV on WhatsApp:\n98765 43210.\nHR Team.",
+      "llm_score": 80,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "Interview Time: Tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Online Job Portal",
+          "rule": "Anonymous recruiter or vague job portal",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Software Developer, Web\nDeveloper",
+          "rule": "Multiple clustered job roles in informal notice",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Share your CV on WhatsApp",
+          "rule": "Unverified CV or resume solicitation on chat apps",
+          "severity": 20
+        },
+        {
+          "category": "job",
+          "evidence": "Venue: Will be provided after\nsharing your updated CV.\nShare your CV",
+          "rule": "Withheld interview address or venue",
+          "severity": 25
+        }
+      ],
+      "ml_score": 14,
+      "radar_indicators": {
+        "impersonation": 36,
+        "ml_score": 14,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 99,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Anonymous recruiter or vague job portal: matched 'Online Job Portal'",
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web\nDeveloper'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'",
+        "Withheld interview address or venue: matched 'Venue: Will be provided after\nsharing your updated CV.\nShare your CV'"
+      ],
+      "rule_score": 99,
+      "safety_tips": [
+        "Verify the company’s official website or contact details through a trusted search engine before responding.",
+        "Confirm the interview time, venue, and recruiter’s identity by calling the company’s official phone number or emailing a verified address.",
+        "Do not send your CV or personal information via WhatsApp or any unverified chat app until you are sure the offer is legitimate."
+      ],
+      "scam_category": "Potential Recruitment Scam",
+      "text": "lo EARNS: we have\nreceived your job application from\nOnline Job Portal.\nYou are invited to proceed with\nthe next step for the position\nof Software Developer, Web\nDeveloper, Graphic Designer.\nInterview Time: Tomorrow 10:30\nAM.\nVenue: Will be provided after\nsharing your updated CV.\nShare your CV on WhatsApp:\n98765 43210.\nHR Team.",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Anonymous recruiter or vague job portal: matched 'Online Job Portal'",
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web\nDeveloper'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'",
+        "Withheld interview address or venue: matched 'Venue: Will be provided after\nsharing your updated CV.\nShare your CV'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "B": {
+      "categories": [
+        "financial",
+        "job"
+      ],
+      "classification_criteria": [
+        "Unexpected payment request: matched 'Registration fee'",
+        "Upfront fee for a job: matched 'Registration fee'"
+      ],
+      "explanation": "The message says you have been selected for a Data Entry Operator role and asks you to pay a registration fee of Rs. 1500 via UPI to confirm the offer. The request for an upfront payment is a classic scam red flag, especially when the job is advertised as a quick opportunity. The text also gives a single phone number (9876543210) and no official company email, website, or HR contact details, which makes it hard to verify authenticity. There is no mention of a formal offer letter, employment contract, or company address, and the tone is informal and urgent, which is typical of fraudulent job postings. Before responding or sending money, you should verify the company's legitimacy by searching for “Global Tech” online, checking for a verified website or LinkedIn page, and contacting the company through official channels listed there. You should also confirm the job details with a trusted faculty advisor or career center, and never send money to a UPI ID that you have not personally verified.",
+      "indicators": null,
+      "jobText": "Dear Candidate, Congratulations! You are selected for Data Entry Operator at Global Tech. Registration fee Rs. 1500/- refundable. Pay to UPI id globaltech@upi to confirm your offer letter. Call 9876543210.",
+      "llm_score": 85,
+      "matches": [
+        {
+          "category": "financial",
+          "evidence": "Registration fee",
+          "rule": "Unexpected payment request",
+          "severity": 25
+        },
+        {
+          "category": "job",
+          "evidence": "Registration fee",
+          "rule": "Upfront fee for a job",
+          "severity": 35
+        }
+      ],
+      "ml_score": 72,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 72,
+        "payment": 100,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 80,
+      "rule_flags": [
+        "Unexpected payment request: matched 'Registration fee'",
+        "Upfront fee for a job: matched 'Registration fee'"
+      ],
+      "rule_score": 71,
+      "safety_tips": [
+        "Search for the company’s official website or LinkedIn page and compare the contact details with those in the message; do not use the UPI ID or phone number until you confirm it’s legitimate.",
+        "Ask a trusted faculty member, career counselor, or the university’s placement office to verify the job offer and the company’s reputation before taking any action.",
+        "If you decide to proceed, use a secure payment method that offers dispute resolution (e.g., credit card or a bank transfer with a traceable reference) and keep all correspondence for future reference."
+      ],
+      "scam_category": "Fake Job Posting",
+      "text": "Dear Candidate, Congratulations! You are selected for Data Entry Operator at Global Tech. Registration fee Rs. 1500/- refundable. Pay to UPI id globaltech@upi to confirm your offer letter. Call 9876543210.",
+      "text_flags": [
+        "Unexpected payment request: matched 'Registration fee'",
+        "Upfront fee for a job: matched 'Registration fee'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "C": {
+      "categories": [],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message is a simple invitation to meet for lunch and contains no request for money, personal information, or urgent action. It does not mention any job, salary, or contact details beyond a casual meeting time. The tone is informal and friendly, which is typical for peer communication. There are no suspicious phrases such as \"please transfer money\" or \"click this link\". The content is straightforward and does not raise any red flags. Before replying, the student should confirm the identity of the person by checking their contact details in their own phone or social media. They should also ensure that the meeting location is safe and public. Finally, they should not share any personal or financial information unless they are certain of the other party’s identity.",
+      "indicators": null,
+      "jobText": "Hey, are we still meeting for lunch tomorrow at 1pm? Let me know if that works for you.",
+      "llm_score": 0,
+      "matches": [],
+      "ml_score": 23,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 23,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 0,
+      "rule_flags": [],
+      "rule_score": 0,
+      "safety_tips": [
+        "Verify the sender’s identity by cross‑checking their contact details in your phone or social media.",
+        "Confirm the meeting location is a safe, public place and let a friend or family member know the plan.",
+        "Avoid sharing any personal or financial information until you are sure the person is who they claim to be."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Hey, are we still meeting for lunch tomorrow at 1pm? Let me know if that works for you.",
+      "text_flags": [],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "D": {
+      "categories": [],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message looks like a typical interview invitation: it specifies a role, a company name, a location, a time, and a contact email. The details are concrete and the tone is professional, which is reassuring. No money is requested, no urgent payment or salary promises are mentioned, and the email address uses a corporate domain. However, the email address is generic (hr.recruitment@infosys.com) and not a verified corporate address, and the invitation is very brief—real recruiters often provide more context or a link to a company portal. The lack of a personalized greeting or reference to the applicant’s name is a mild red flag. Before responding, the student should verify the email address and the interview details through the official Infosys careers website or by calling the official HR number found there. The student should also confirm the interview location and time with the company’s official channels.",
+      "indicators": null,
+      "jobText": "Dear candidate, Following your application for the Senior Software Engineer role at Infosys Limited, we would like to invite you for a technical interview tomorrow at 11:00 AM. Location: Infosys Campus, Electronic City, Hosur Road, Bengaluru. Gate 1 reception. Please carry a photo ID. Contact: hr.recruitment@infosys.com.",
+      "llm_score": 4,
+      "matches": [],
+      "ml_score": 4,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 4,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 0,
+      "rule_flags": [],
+      "rule_score": 0,
+      "safety_tips": [
+        "Verify the sender’s email address and contact details on the company’s official website or through a trusted phone number.",
+        "Ask the recruiter for a formal interview invitation or a link to the company’s career portal, and confirm the interview details independently.",
+        "Never share personal documents or pay any fees until you have confirmed the authenticity of the invitation through official channels."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Dear candidate, Following your application for the Senior Software Engineer role at Infosys Limited, we would like to invite you for a technical interview tomorrow at 11:00 AM. Location: Infosys Campus, Electronic City, Hosur Road, Bengaluru. Gate 1 reception. Please carry a photo ID. Contact: hr.recruitment@infosys.com.",
+      "text_flags": [],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "E": {
+      "categories": [],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message looks like a typical job outreach: it mentions a specific role, a company name, a recruiter’s name, and invites you to schedule an interview via a Google Meet link. There are no promises of money, salary details, or urgent requests to send money. The tone is professional and the contact method is a public meeting link, which is common for remote interviews. However, the email address or domain is not shown, so you cannot confirm the sender’s authenticity. Before responding, verify that the recruiter’s email matches an official Zoho domain, check the company’s career page for the advertised opening, and confirm the interview link by contacting Zoho’s HR through their official website or phone number. Also, be cautious if the recruiter asks for any personal or financial information early on.",
+      "indicators": null,
+      "jobText": "Hi Alex, I came across your profile and think you'd be a great fit for our Product Designer opening at Zoho Corporation. We are holding interviews this week. If you're interested, please select a slot at https://meet.google.com/abc-defg-hij or reply to this email. Best regards, Priya Sharma, Talent Acquisition, Zoho.",
+      "llm_score": 10,
+      "matches": [],
+      "ml_score": 21,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 21,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 0,
+      "rule_flags": [],
+      "rule_score": 0,
+      "safety_tips": [
+        "Verify the sender’s email domain and cross‑check the job posting on the company’s official careers page.",
+        "Confirm the interview link by contacting the company’s HR department through their official website or phone number.",
+        "Do not share any personal or financial details until you have confirmed the recruiter’s identity and the legitimacy of the job offer."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Hi Alex, I came across your profile and think you'd be a great fit for our Product Designer opening at Zoho Corporation. We are holding interviews this week. If you're interested, please select a slot at https://meet.google.com/abc-defg-hij or reply to this email. Best regards, Priya Sharma, Talent Acquisition, Zoho.",
+      "text_flags": [],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "F": {
+      "categories": [
+        "job"
+      ],
+      "classification_criteria": [
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'"
+      ],
+      "explanation": "The message says you have an interview tomorrow at a TCS campus and asks you to share your CV on a WhatsApp number. The request to send personal documents via a personal chat app is a common scam tactic, and the email address hr@tcs-hiring.in is not a verified corporate domain. The urgency (“Tomorrow”) and the lack of official contact details or a company phone number raise suspicion. However, the location (TCS Campus, Whitefield, Bengaluru) and the mention of a real company name give it some surface credibility, so it is not an outright scam but requires verification. Before responding, check that the interview time and venue match what you have on record, confirm the phone number and email through TCS’s official career portal or LinkedIn page, and avoid sending your CV until you have verified the authenticity of the contact. If you are unsure, contact TCS directly using the phone number listed on their official website.",
+      "indicators": null,
+      "jobText": "TCS Technologies Pvt Ltd. Interview Time: Tomorrow. Venue: TCS Campus, Whitefield, Bengaluru, Gate 1 reception. Share your CV on WhatsApp 98765 43210 to confirm your slot. Contact: hr@tcs-hiring.in",
+      "llm_score": 51,
+      "matches": [
+        {
+          "category": "job",
+          "evidence": "Share your CV on WhatsApp",
+          "rule": "Unverified CV or resume solicitation on chat apps",
+          "severity": 20
+        }
+      ],
+      "ml_score": 51,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 51,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 20,
+      "rule_flags": [
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'"
+      ],
+      "rule_score": 20,
+      "safety_tips": [
+        "Verify the interview details by visiting TCS’s official careers website or LinkedIn page and cross‑check the phone number and email address.",
+        "Do not send your CV or personal information over WhatsApp or any unverified chat app until you confirm the contact is legitimate.",
+        "If you receive any request for money or additional documents, treat it as a red flag and report it to campus security or the official TCS recruitment team."
+      ],
+      "scam_category": "Potential Recruitment Scam",
+      "text": "TCS Technologies Pvt Ltd. Interview Time: Tomorrow. Venue: TCS Campus, Whitefield, Bengaluru, Gate 1 reception. Share your CV on WhatsApp 98765 43210 to confirm your slot. Contact: hr@tcs-hiring.in",
+      "text_flags": [
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "G": {
+      "categories": [
+        "job",
+        "phishing"
+      ],
+      "classification_criteria": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Send your CV on WhatsApp'"
+      ],
+      "explanation": "The message raises several red flags that suggest it could be a scam. First, it pressures you with a next‑day interview, which is uncommon for legitimate hiring processes that usually allow more time for scheduling. Second, it asks you to send your CV via WhatsApp, a public chat platform that is not a secure or official channel for job applications. Third, the contact number is presented without any company verification or official email address, making it hard to confirm authenticity. While the mention of a well‑known company name might seem reassuring, scammers often use real company names to appear legitimate. Before responding, you should verify the phone number and email address through the company’s official website or LinkedIn page, and confirm the interview details with a known HR representative. Also, do not share personal or financial information until you have confirmed the legitimacy of the request. Finally, be cautious of any request that feels rushed or asks for sensitive data through informal channels.",
+      "indicators": null,
+      "jobText": "Wipro Ltd is hiring. Interview tomorrow. Location: Pune. Send your CV on WhatsApp 98765 43210 for the detailed address.",
+      "llm_score": 85,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "Interview tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Send your CV on WhatsApp",
+          "rule": "Unverified CV or resume solicitation on chat apps",
+          "severity": 20
+        }
+      ],
+      "ml_score": 82,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 82,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 80,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Send your CV on WhatsApp'"
+      ],
+      "rule_score": 45,
+      "safety_tips": [
+        "Check the company’s official website or LinkedIn page for the advertised job posting and contact details.",
+        "Verify the phone number by calling it back or searching for it online to see if it matches the company’s official contact info.",
+        "Never send your CV or personal details via WhatsApp or other unsecured messaging apps; use official email or the company’s career portal instead."
+      ],
+      "scam_category": "Potential Recruitment Scam",
+      "text": "Wipro Ltd is hiring. Interview tomorrow. Location: Pune. Send your CV on WhatsApp 98765 43210 for the detailed address.",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Send your CV on WhatsApp'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "H": {
+      "categories": [
+        "job"
+      ],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The notice says \"Hiring at Zoho Corporation: Software Developer, Web Developer & Data Analyst. Apply at careers.zoho.com. Interview details will be shared by email after shortlisting.\" This looks like a generic job ad, but the fact that it lists multiple roles in one line and offers to send interview details by email is a common pattern in low‑quality postings. The URL is short and could be legitimate, but the ad does not mention a specific location, salary, or contact number, which is unusual for a real corporate posting. It also lacks any professional formatting or a clear application process beyond a single link. A student should verify that the careers.zoho.com site is the official Zoho careers portal, check for a real HR email address, and confirm the job details with the company’s official website or LinkedIn page. If any part of the ad feels vague or if you are asked to pay for anything, treat it with caution.",
+      "indicators": null,
+      "jobText": "Hiring at Zoho Corporation: Software Developer, Web Developer & Data Analyst. Apply at careers.zoho.com. Interview details will be shared by email after shortlisting.",
+      "llm_score": 31,
+      "matches": [
+        {
+          "category": "job",
+          "evidence": "Software Developer, Web Developer",
+          "rule": "Multiple clustered job roles in informal notice",
+          "severity": 18
+        }
+      ],
+      "ml_score": 31,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 31,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 18,
+      "rule_flags": [
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web Developer'"
+      ],
+      "rule_score": 18,
+      "safety_tips": [
+        "Search for the company’s official careers page using a trusted search engine before clicking any links.",
+        "Verify the email address and contact details against those listed on the official company website or LinkedIn.",
+        "Never send money or personal documents until you confirm the job posting is legitimate through official channels."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Hiring at Zoho Corporation: Software Developer, Web Developer & Data Analyst. Apply at careers.zoho.com. Interview details will be shared by email after shortlisting.",
+      "text_flags": [
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web Developer'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "I": {
+      "categories": [],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message says you have an interview at Infosys Campus in Bengaluru and gives an email address hr@infosys-careers.in. The details are fairly specific – location, date, and a contact email – which is a good sign. However, the email domain is not the official Infosys domain (which is usually @infosys.com), and the message does not mention any official recruitment portal or reference a job posting ID. The lack of a formal invitation link or a company letterhead also raises a mild concern. Before responding, you should verify that the email address and the interview details match what Infosys publishes on its official careers website or through its official app. Also, check that the interview is scheduled through a known recruitment channel and that no money or personal documents are requested upfront.",
+      "indicators": null,
+      "jobText": "Infosys Limited. Interview tomorrow at Infosys Campus, Electronic City, Bengaluru, Gate 2 reception. Contact: hr@infosys-careers.in",
+      "llm_score": 25,
+      "matches": [],
+      "ml_score": 25,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 25,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 0,
+      "rule_flags": [],
+      "rule_score": 0,
+      "safety_tips": [
+        "Verify the email address by searching for the official Infosys careers site or using the official app; do not reply to or click links from unverified emails.",
+        "Confirm the interview details (date, time, location) by contacting Infosys directly through the phone number listed on your official bank card or the contact info on their official website.",
+        "Never provide personal documents or pay any fees before you have confirmed the interview through an official channel."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Infosys Limited. Interview tomorrow at Infosys Campus, Electronic City, Bengaluru, Gate 2 reception. Contact: hr@infosys-careers.in",
+      "text_flags": [],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    }
+  },
+  "guard_off": {
+    "A": {
+      "categories": [
+        "job",
+        "phishing"
+      ],
+      "classification_criteria": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Anonymous recruiter or vague job portal: matched 'Online Job Portal'",
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web\nDeveloper'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'",
+        "Withheld interview address or venue: matched 'Venue: Will be provided after\nsharing your updated CV.\nShare your CV'"
+      ],
+      "explanation": "The message raises several red flags that suggest it could be a scam. First, it pressures you to act quickly with a next‑day interview: \"Interview Time: Tomorrow 10:30 AM.\" Second, it comes from an unnamed source, only mentioning an \"Online Job Portal\" without any company name or official contact details. Third, it asks you to share your CV via WhatsApp to a phone number, which is a common tactic to harvest personal data. Fourth, the interview venue is withheld until you send your CV, which is unusual for legitimate recruiters. Before responding, verify the company’s official website or LinkedIn page, confirm the phone number through a reliable source, and never send sensitive documents over WhatsApp unless you have confirmed the recruiter’s identity.",
+      "indicators": null,
+      "jobText": "lo EARNS: we have\nreceived your job application from\nOnline Job Portal.\nYou are invited to proceed with\nthe next step for the position\nof Software Developer, Web\nDeveloper, Graphic Designer.\nInterview Time: Tomorrow 10:30\nAM.\nVenue: Will be provided after\nsharing your updated CV.\nShare your CV on WhatsApp:\n98765 43210.\nHR Team.",
+      "llm_score": 80,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "Interview Time: Tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Online Job Portal",
+          "rule": "Anonymous recruiter or vague job portal",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Software Developer, Web\nDeveloper",
+          "rule": "Multiple clustered job roles in informal notice",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Share your CV on WhatsApp",
+          "rule": "Unverified CV or resume solicitation on chat apps",
+          "severity": 20
+        },
+        {
+          "category": "job",
+          "evidence": "Venue: Will be provided after\nsharing your updated CV.\nShare your CV",
+          "rule": "Withheld interview address or venue",
+          "severity": 25
+        }
+      ],
+      "ml_score": 14,
+      "radar_indicators": {
+        "impersonation": 36,
+        "ml_score": 14,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 99,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Anonymous recruiter or vague job portal: matched 'Online Job Portal'",
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web\nDeveloper'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'",
+        "Withheld interview address or venue: matched 'Venue: Will be provided after\nsharing your updated CV.\nShare your CV'"
+      ],
+      "rule_score": 99,
+      "safety_tips": [
+        "Verify the company’s official website or LinkedIn profile before sharing any personal information.",
+        "Confirm the phone number by searching online or checking the company’s official contact details, not just the number given in the message.",
+        "Do not send your CV or personal data over WhatsApp or any chat app unless you have confirmed the recruiter’s identity and legitimacy."
+      ],
+      "scam_category": "Potential Recruitment Scam",
+      "text": "lo EARNS: we have\nreceived your job application from\nOnline Job Portal.\nYou are invited to proceed with\nthe next step for the position\nof Software Developer, Web\nDeveloper, Graphic Designer.\nInterview Time: Tomorrow 10:30\nAM.\nVenue: Will be provided after\nsharing your updated CV.\nShare your CV on WhatsApp:\n98765 43210.\nHR Team.",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Anonymous recruiter or vague job portal: matched 'Online Job Portal'",
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web\nDeveloper'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'",
+        "Withheld interview address or venue: matched 'Venue: Will be provided after\nsharing your updated CV.\nShare your CV'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "B": {
+      "categories": [
+        "financial",
+        "job"
+      ],
+      "classification_criteria": [
+        "Unexpected payment request: matched 'Registration fee'",
+        "Upfront fee for a job: matched 'Registration fee'"
+      ],
+      "explanation": "The message says you have been selected for a Data Entry Operator role and asks you to pay a registration fee of Rs. 1500 to a UPI ID. This upfront payment request is a classic scam sign. The text also gives a single phone number and no official email address or company website, which is unusual for a legitimate job offer. There is no mention of a formal interview process, company address, or detailed job description. The tone is urgent and the payment is described as refundable, which is a common trick to make the request seem safe. Before responding, you should verify the company's existence, check for a legitimate career page, and confirm the offer through an official channel. If you are unsure, do not send money or personal details until you have confirmed the offer is real.",
+      "indicators": null,
+      "jobText": "Dear Candidate, Congratulations! You are selected for Data Entry Operator at Global Tech. Registration fee Rs. 1500/- refundable. Pay to UPI id globaltech@upi to confirm your offer letter. Call 9876543210.",
+      "llm_score": 80,
+      "matches": [
+        {
+          "category": "financial",
+          "evidence": "Registration fee",
+          "rule": "Unexpected payment request",
+          "severity": 25
+        },
+        {
+          "category": "job",
+          "evidence": "Registration fee",
+          "rule": "Upfront fee for a job",
+          "severity": 35
+        }
+      ],
+      "ml_score": 72,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 72,
+        "payment": 100,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 80,
+      "rule_flags": [
+        "Unexpected payment request: matched 'Registration fee'",
+        "Upfront fee for a job: matched 'Registration fee'"
+      ],
+      "rule_score": 71,
+      "safety_tips": [
+        "Verify the company by searching its official website or LinkedIn page and look for a career section.",
+        "Check the phone number and email address against official contact details listed on the company's verified site.",
+        "Never send money or personal documents until you have confirmed the job offer through an official channel."
+      ],
+      "scam_category": "Fake Job Posting",
+      "text": "Dear Candidate, Congratulations! You are selected for Data Entry Operator at Global Tech. Registration fee Rs. 1500/- refundable. Pay to UPI id globaltech@upi to confirm your offer letter. Call 9876543210.",
+      "text_flags": [
+        "Unexpected payment request: matched 'Registration fee'",
+        "Upfront fee for a job: matched 'Registration fee'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "C": {
+      "categories": [],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message is a simple invitation to meet for lunch and contains no request for money, personal data, or urgent action. It does not mention any job offer, salary, or contact details beyond a casual meeting time. The wording is informal and typical of a peer-to-peer conversation, which is reassuring. There are no suspicious phrases such as \"please transfer money\" or \"urgent response needed\". The student should verify that the person who sent the message is indeed a known friend or classmate, perhaps by checking their contact details or confirming through a mutual friend. No further verification is required before replying, as the content poses no risk. The message appears safe and ordinary.",
+      "indicators": null,
+      "jobText": "Hey, are we still meeting for lunch tomorrow at 1pm? Let me know if that works for you.",
+      "llm_score": 0,
+      "matches": [],
+      "ml_score": 23,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 23,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 0,
+      "rule_flags": [],
+      "rule_score": 0,
+      "safety_tips": [
+        "Confirm the sender’s identity by cross‑checking their contact details or asking a mutual friend.",
+        "Do not share any personal or financial information in response to the message.",
+        "If the conversation shifts to a request for money or sensitive data, pause and verify the source before proceeding."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Hey, are we still meeting for lunch tomorrow at 1pm? Let me know if that works for you.",
+      "text_flags": [],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "D": {
+      "categories": [
+        "phishing"
+      ],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message says you’re invited for a technical interview tomorrow at 11:00 AM, which is a quick turnaround that can be a sign of a scam. The email address listed (hr.recruitment@infosys.com) looks plausible, but the text does not mention any official company branding, salary details, or a link to a company portal. The location is a real Infosys campus in Bengaluru, which adds some credibility, yet the lack of a formal invitation format and the urgency of the next‑day interview raise concerns. A legitimate recruiter would usually provide a scheduled interview link, a phone number, or a reference to an official career portal. Before responding, verify the email address by checking the official Infosys careers website or contacting the HR department directly through a known phone number. Also, confirm the interview details by calling the campus reception or the HR office listed on the official site. Finally, do not share any personal documents or pay any fees until you have confirmed the authenticity of the invitation.",
+      "indicators": null,
+      "jobText": "Dear candidate, Following your application for the Senior Software Engineer role at Infosys Limited, we would like to invite you for a technical interview tomorrow at 11:00 AM. Location: Infosys Campus, Electronic City, Hosur Road, Bengaluru. Gate 1 reception. Please carry a photo ID. Contact: hr.recruitment@infosys.com.",
+      "llm_score": 40,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "interview tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        }
+      ],
+      "ml_score": 4,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 4,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 18,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'interview tomorrow'"
+      ],
+      "rule_score": 18,
+      "safety_tips": [
+        "Verify the email address by searching for the official Infosys careers site and contacting HR through the phone number listed there.",
+        "Call the campus reception or HR office at the address provided to confirm the interview invitation.",
+        "Do not share personal documents or pay any fees until you have confirmed the authenticity of the invitation."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Dear candidate, Following your application for the Senior Software Engineer role at Infosys Limited, we would like to invite you for a technical interview tomorrow at 11:00 AM. Location: Infosys Campus, Electronic City, Hosur Road, Bengaluru. Gate 1 reception. Please carry a photo ID. Contact: hr.recruitment@infosys.com.",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'interview tomorrow'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "E": {
+      "categories": [],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message looks like a typical job outreach: it names a real company, Zoho, and offers a specific role, Product Designer, with a clear next step – booking a Google Meet interview. The tone is professional and the contact details are minimal but plausible. However, the email is short, lacks a proper subject line, and uses a generic Google Meet link rather than a company‑hosted meeting platform, which can be a red flag. The sender’s name and title are provided, but there is no official email address or company domain shown, and no reference to a formal recruitment portal. Before responding, the student should verify that the email actually comes from Zoho’s official domain, confirm the role and interview details via the company’s careers page, and ensure the meeting link is legitimate. The student should also check that the recruiter’s contact information matches publicly available data on Zoho’s website.",
+      "indicators": null,
+      "jobText": "Hi Alex, I came across your profile and think you'd be a great fit for our Product Designer opening at Zoho Corporation. We are holding interviews this week. If you're interested, please select a slot at https://meet.google.com/abc-defg-hij or reply to this email. Best regards, Priya Sharma, Talent Acquisition, Zoho.",
+      "llm_score": 21,
+      "matches": [],
+      "ml_score": 21,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 21,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 0,
+      "rule_flags": [],
+      "rule_score": 0,
+      "safety_tips": [
+        "Verify the sender’s email address and domain against the official company website or LinkedIn profile.",
+        "Cross‑check the job posting and interview details on the company’s official careers page or a trusted job portal.",
+        "If you need to share personal information, do so only after confirming the recruiter’s identity and using secure, official communication channels."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Hi Alex, I came across your profile and think you'd be a great fit for our Product Designer opening at Zoho Corporation. We are holding interviews this week. If you're interested, please select a slot at https://meet.google.com/abc-defg-hij or reply to this email. Best regards, Priya Sharma, Talent Acquisition, Zoho.",
+      "text_flags": [],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "F": {
+      "categories": [
+        "job",
+        "phishing"
+      ],
+      "classification_criteria": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'"
+      ],
+      "explanation": "The message is highly suspicious because it pressures you to attend an interview the very next day and asks you to send your CV via a personal WhatsApp number, which is a common tactic used by scammers to gather personal information. The phrase \"Interview Time: Tomorrow\" creates urgency, and \"Share your CV on WhatsApp 98765 43210\" is a red flag because legitimate companies normally use official email or career portals for CV submission. There is no mention of a formal email address or a verified company domain, and the contact email looks generic and unprofessional. The lack of official details such as a company letterhead, official phone number, or a link to a verified career page makes it difficult to confirm authenticity. Before responding, you should verify the interview details by contacting TCS directly through their official website or the phone number listed on your official employment documents. Also, check if the email address and phone number match those found on the company’s official career portal. Finally, do not share any personal or financial information until you have confirmed the legitimacy of the request.",
+      "indicators": null,
+      "jobText": "TCS Technologies Pvt Ltd. Interview Time: Tomorrow. Venue: TCS Campus, Whitefield, Bengaluru, Gate 1 reception. Share your CV on WhatsApp 98765 43210 to confirm your slot. Contact: hr@tcs-hiring.in",
+      "llm_score": 80,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "Interview Time: Tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Share your CV on WhatsApp",
+          "rule": "Unverified CV or resume solicitation on chat apps",
+          "severity": 20
+        }
+      ],
+      "ml_score": 51,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 51,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 80,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'"
+      ],
+      "rule_score": 45,
+      "safety_tips": [
+        "Verify the interview details by calling the official TCS HR number found on their official website.",
+        "Never send your CV or personal documents via personal WhatsApp or unverified email addresses.",
+        "Cross-check the email address and phone number with official sources before replying or providing any information."
+      ],
+      "scam_category": "Potential Recruitment Scam",
+      "text": "TCS Technologies Pvt Ltd. Interview Time: Tomorrow. Venue: TCS Campus, Whitefield, Bengaluru, Gate 1 reception. Share your CV on WhatsApp 98765 43210 to confirm your slot. Contact: hr@tcs-hiring.in",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'Interview Time: Tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Share your CV on WhatsApp'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "G": {
+      "categories": [
+        "job",
+        "phishing"
+      ],
+      "classification_criteria": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Send your CV on WhatsApp'"
+      ],
+      "explanation": "The message raises several red flags that suggest it could be a scam. First, it demands an interview the very next day, which is unusually fast for a legitimate hiring process. Second, it asks you to send your CV via WhatsApp to a personal phone number, a common tactic used by fraudsters to avoid official channels. The lack of any official email address, company website link, or HR contact details also makes the offer suspicious. While the mention of a well-known company name might seem reassuring, scammers often use real company names to appear credible. Before responding, verify the job posting on Wipro’s official careers page or through a reputable job portal, and confirm the phone number by calling the official Wipro HR line. Do not share personal documents or pay any fees until you have confirmed the authenticity of the offer. The urgency and informal communication style are typical of fraudulent schemes targeting job seekers.",
+      "indicators": null,
+      "jobText": "Wipro Ltd is hiring. Interview tomorrow. Location: Pune. Send your CV on WhatsApp 98765 43210 for the detailed address.",
+      "llm_score": 82,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "Interview tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        },
+        {
+          "category": "job",
+          "evidence": "Send your CV on WhatsApp",
+          "rule": "Unverified CV or resume solicitation on chat apps",
+          "severity": 20
+        }
+      ],
+      "ml_score": 82,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 82,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "High",
+      "risk_score": 80,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Send your CV on WhatsApp'"
+      ],
+      "rule_score": 45,
+      "safety_tips": [
+        "Check the official Wipro careers website or a trusted job portal for the same posting before responding.",
+        "Verify the phone number by calling the official Wipro HR contact listed on their website, not the number in the message.",
+        "Never send personal documents or pay any fees until you have confirmed the job offer is legitimate."
+      ],
+      "scam_category": "Potential Recruitment Scam",
+      "text": "Wipro Ltd is hiring. Interview tomorrow. Location: Pune. Send your CV on WhatsApp 98765 43210 for the detailed address.",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'",
+        "Unverified CV or resume solicitation on chat apps: matched 'Send your CV on WhatsApp'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "H": {
+      "categories": [
+        "job"
+      ],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The notice is short and vague, which is common for legitimate job postings, but it also lists multiple roles in a single line: \"Software Developer, Web Developer & Data Analyst.\" This clustering can be a red flag because real companies usually post separate listings for each position. The message says interview details will be shared by email after shortlisting, but it does not provide any contact email, phone number, or official HR link—just a generic URL. The lack of a specific application link or a company email address means you cannot verify the authenticity easily. Before responding, check that the careers URL actually leads to Zoho’s official careers page by searching for it yourself, and look for a verified domain (e.g., zoho.com). Also, confirm that the email address used for communication ends with the official domain and not a free or suspicious one. Finally, be cautious about any request for personal or financial information early in the process.",
+      "indicators": null,
+      "jobText": "Hiring at Zoho Corporation: Software Developer, Web Developer & Data Analyst. Apply at careers.zoho.com. Interview details will be shared by email after shortlisting.",
+      "llm_score": 31,
+      "matches": [
+        {
+          "category": "job",
+          "evidence": "Software Developer, Web Developer",
+          "rule": "Multiple clustered job roles in informal notice",
+          "severity": 18
+        }
+      ],
+      "ml_score": 31,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 31,
+        "payment": 0,
+        "urgency": 0,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 18,
+      "rule_flags": [
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web Developer'"
+      ],
+      "rule_score": 18,
+      "safety_tips": [
+        "Search for the company’s official careers page using a trusted search engine and verify the domain.",
+        "Check that any email address used for communication ends with the official company domain and not a free or suspicious one.",
+        "Do not provide personal or financial details until you have confirmed the legitimacy of the job posting and the contact channel."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Hiring at Zoho Corporation: Software Developer, Web Developer & Data Analyst. Apply at careers.zoho.com. Interview details will be shared by email after shortlisting.",
+      "text_flags": [
+        "Multiple clustered job roles in informal notice: matched 'Software Developer, Web Developer'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    },
+    "I": {
+      "categories": [
+        "phishing"
+      ],
+      "classification_criteria": [
+        "No explicit scam indicators or high-risk rule patterns matched."
+      ],
+      "explanation": "The message says you have an interview tomorrow at Infosys Campus, which is a very short notice and can be a tactic used by scammers to create urgency. The contact email is hr@infosys-careers.in, which looks plausible but could be spoofed. There is no mention of a phone number, official website link, or any official company branding in the text, which are usually present in legitimate communications. The phrase \"Interview tomorrow\" is a red flag because real companies normally give candidates a few days to a week to prepare. However, the email address uses a domain that could belong to Infosys, so it is not automatically a scam. Before responding, verify the interview details by searching for the official Infosys careers page or contacting the official HR number found on that site. Also, check the email address against known official domains and look for any spelling errors or unusual characters. Finally, do not share any personal or financial information until you confirm the authenticity of the invitation.",
+      "indicators": null,
+      "jobText": "Infosys Limited. Interview tomorrow at Infosys Campus, Electronic City, Bengaluru, Gate 2 reception. Contact: hr@infosys-careers.in",
+      "llm_score": 60,
+      "matches": [
+        {
+          "category": "phishing",
+          "evidence": "Interview tomorrow",
+          "rule": "Rapid next-day interview pressure",
+          "severity": 18
+        }
+      ],
+      "ml_score": 25,
+      "radar_indicators": {
+        "impersonation": 0,
+        "ml_score": 25,
+        "payment": 0,
+        "urgency": 36,
+        "url_risk": null
+      },
+      "risk_level": "Low",
+      "risk_score": 18,
+      "rule_flags": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'"
+      ],
+      "rule_score": 18,
+      "safety_tips": [
+        "Search for the official Infosys careers website or use the official HR phone number to confirm the interview details.",
+        "Verify the email address by comparing it with the official domain listed on the company’s website; look for typos or unusual subdomains.",
+        "Do not provide any personal or financial information until you have confirmed the invitation through an official channel."
+      ],
+      "scam_category": "Unclassified",
+      "text": "Infosys Limited. Interview tomorrow at Infosys Campus, Electronic City, Bengaluru, Gate 2 reception. Contact: hr@infosys-careers.in",
+      "text_flags": [
+        "Rapid next-day interview pressure: matched 'Interview tomorrow'"
+      ],
+      "url": "",
+      "url_flags": [],
+      "url_score": null,
+      "url_verdict": null,
+      "url_verdict_reason": null,
+      "verification_checks": null
+    }
+  }
+}
