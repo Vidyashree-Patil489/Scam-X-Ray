@@ -1,7 +1,6 @@
 flask
 flask-cors
-google-genai
 python-dotenv
-scikit-learn
-pandas
-numpy
+groq
+scikit-learn==1.7.2
+gunicorn
