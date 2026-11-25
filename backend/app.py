@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -7,7 +8,7 @@ load_dotenv()
 
 from services.rule_engine import get_rule_analysis
 from services.predictor import get_ml_score
-from services.url_analyzer import analyze_url_comprehensive
+from services.url_analyzer import analyze_url_comprehensive, get_explicit_scheme
 from services.analyzer import get_claude_explanation, get_url_ai_explanation
 from services.category_classifier import classify_threat
 
@@ -88,17 +89,33 @@ def analyze():
     if not isinstance(text, str) or not isinstance(url, str):
         return jsonify({"error": "'text' and 'url' must be strings."}), 400
 
-    text = text.strip()
+    text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
     url = url.strip()
 
     if not text and not url:
         return jsonify({"error": "Provide message text, a URL, or both."}), 400
+
+    if url:
+        explicit_scheme = get_explicit_scheme(url)
+        if explicit_scheme is not None and explicit_scheme not in ("http", "https"):
+            return jsonify({"error": "Only http and https links are supported"}), 400
+
+        base_part = url.split("?", 1)[0].split("#", 1)[0]
+        has_multiple = (
+            len(re.findall(r"https?://", base_part, re.IGNORECASE)) > 1
+            or ("," in base_part and len([p for p in base_part.split(",") if "." in p.strip()]) > 1)
+            or (";" in base_part and len([p for p in base_part.split(";") if "." in p.strip()]) > 1)
+        )
+        if re.search(r"\s", url) or has_multiple:
+            return jsonify({"error": "Enter one URL at a time"}), 400
 
     # =========================================================================
     # PATH A: URL-ONLY SCAN (Independent 3-layer architecture)
     # =========================================================================
     if url and not text:
         url_result = analyze_url_comprehensive(url, execute_network=True)
+        if url_result.get("error"):
+            return jsonify({"error": url_result["error"]}), 400
         threat_score = url_result["threat_score"]
         indicators = url_result["indicators"]
         verification_checks = url_result["verification_checks"]
@@ -119,24 +136,27 @@ def analyze():
         llm_score = None  # Explicitly N/A for URL-only scans
 
         # Overall risk derived from threat indicators and verdict only
-        if url_verdict == "Suspicious / Potentially Fraudulent":
+        if url_verdict == "Malicious":
+            risk_score = 100
+            risk_level = "High"
+            scam_category = "Known Phishing Link"
+        elif url_verdict in ("Suspicious", "Suspicious / Potentially Fraudulent"):
             risk_score = threat_score
             risk_level = "High" if risk_score > 70 else "Medium"
-        elif url_verdict == "Likely Legitimate":
+            scam_category = "Potentially Fraudulent Link"
+        elif url_verdict in ("No threat found", "Likely Legitimate"):
             risk_score = 0
             risk_level = "Low"
-        else:  # Unverified
+            scam_category = "No Threat Detected"
+        else:  # Unknown / Unverified
             risk_score = threat_score
-            risk_level = "Unverified"
-
-        if url_verdict == "Suspicious / Potentially Fraudulent":
-            scam_category = "Potentially Fraudulent Link"
-        elif url_result.get("is_reserved_example"):
-            scam_category = "Unverified (Reserved Example Domain)"
-        elif url_verdict == "Likely Legitimate":
-            scam_category = "Likely Legitimate URL"
-        else:
-            scam_category = "Unverified URL"
+            risk_level = "Unknown"
+            if url_result.get("is_reserved_example"):
+                scam_category = "Unknown (Reserved Example Domain)"
+            elif any(i.get("id") == "user_content_platform" for i in indicators):
+                scam_category = "Unknown (User-Content Platform)"
+            else:
+                scam_category = "Unknown URL"
 
         if indicators:
             classification_criteria = [
@@ -173,11 +193,17 @@ def analyze():
                 "ml_score": 0,
                 "impersonation": 75 if any(i["id"] in ("subdomain_brand_spoof", "brand_lookalike_domain") for i in indicators) else 0,
             },
+            "verdict": url_verdict,
             "url_verdict": url_verdict,
             "url_verdict_reason": url_verdict_reason,
+            "confidence": url_result.get("confidence", "medium"),
             "indicators": indicators,
             "url_indicators": indicators,
+            "verification": url_result.get("verification", verification_checks),
             "verification_checks": verification_checks,
+            "evidence": url_result.get("evidence", []),
+            "limitations": url_result.get("limitations", []),
+            "recommended_actions": url_result.get("recommended_actions", []),
             "matches": [],
         }
 
@@ -311,6 +337,7 @@ def analyze():
         "indicators": url_result.get("indicators", []) if url else None,
         "verification_checks": url_result.get("verification_checks", []) if url else None,
         "matches": matches,
+        "flags": matches,
     }
 
     return jsonify(response), 200

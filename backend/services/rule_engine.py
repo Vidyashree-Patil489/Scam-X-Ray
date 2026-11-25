@@ -120,9 +120,9 @@ RULES = [
         "severity": 18,
         "patterns": [
             r"\bno\s+prior\s+experience\b",
-            r"\bworking\s+just\s+\d+\s+hours?\b",
+            r"\bworking\s+just\s+(?:\d+\s*(?:[-–—]|\bto\b)\s*)?\d+\s+hours?\b",
             r"\bearn\s+[₹$]?\s*[\d,]+\s+.*?month\b",
-            r"\b\d+\s+hours?\s+daily\b",
+            r"\b(?:\d+\s*(?:[-–—]|\bto\b)\s*)?\d+\s+hours?\s+daily\b",
             r"\bno\s+interview\s+required\b",
             r"\bguaranteed\s+income\b",
             r"\bearn\s+.*?\s+per\s+day\b",
@@ -199,7 +199,7 @@ RULES = [
         "patterns": [
             r"\bwhats\s?app[\s-]+only\b",
             r"\btelegram[\s-]+only\b",
-            r"\b(?:contact|message|text|apply|reach|dm)\b[\s\S]{0,40}\b(?:whats\s?app|telegram)\b",
+            r"\b(?:contact|message|text|apply|reach|dm)\b[^\n\r]{0,30}\b(?:whats\s?app|telegram)\b",
             r"\b(?:telegram|whatsapp)\s+(?:group|channel)\b",
             r"\bjoin\s+(?:our\s+|the\s+)?(?:telegram|whatsapp)\b",
             r"\btelegram:\s*@[\w]+",
@@ -439,12 +439,26 @@ def is_legitimate_recruitment_context(text: str) -> bool:
     return False
 
 
+def merge_rule_spans(raw_spans: list[dict]) -> list[dict]:
+    """Merge overlapping or touching spans for a single rule."""
+    if not raw_spans:
+        return []
+    sorted_spans = sorted(raw_spans, key=lambda s: (s["start"], s["end"]))
+    merged = [{"start": sorted_spans[0]["start"], "end": sorted_spans[0]["end"]}]
+    for s in sorted_spans[1:]:
+        prev = merged[-1]
+        if s["start"] <= prev["end"]:
+            prev["end"] = max(prev["end"], s["end"])
+        else:
+            merged.append({"start": s["start"], "end": s["end"]})
+    return merged
+
+
 def get_rule_analysis(text: str) -> dict:
     """Return matched rule evidence, categories, and a bounded heuristic score."""
     text = text or ""
     matches = []
     categories = set()
-    seen = set()
 
     is_legit_context = is_legitimate_recruitment_context(text)
 
@@ -453,23 +467,60 @@ def get_rule_analysis(text: str) -> dict:
         if is_legit_context and rule["name"] in SUPPRESSED_BY_LEGITIMATE_GUARD:
             continue
 
+        rule_name = rule["name"]
+        rule_category = rule["category"]
+        rule_severity = rule["severity"]
+        rule_id = re.sub(r"[^a-z0-9]+", "_", rule_name.lower()).strip("_")
+
+        # Behavioral rule with no specific phrase
+        if rule_name == "Multiple clustered job roles in informal notice":
+            matched_match = None
+            for pattern in rule["patterns"]:
+                m = re.search(pattern, text, re.IGNORECASE)
+                if m:
+                    matched_match = m
+                    break
+            if matched_match:
+                evidence = matched_match.group(0)
+                matches.append({
+                    "id": rule_id,
+                    "rule": rule_name,
+                    "name": rule_name,
+                    "label": rule_name,
+                    "category": rule_category,
+                    "severity": rule_severity,
+                    "severity_label": "HIGH" if rule_severity >= 20 else "CAUTIONARY",
+                    "evidence": evidence,
+                    "matched_text": "",
+                    "spans": [],
+                    "text": f"{rule_name}: matched '{evidence}'",
+                })
+                categories.add(rule_category)
+            continue
+
+        # Standard phrase matching rules: collect all occurrences
+        raw_spans = []
         for pattern in rule["patterns"]:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                evidence = match.group(0)
-                key = (rule["name"], evidence.lower())
+            for m in re.finditer(pattern, text, re.IGNORECASE):
+                raw_spans.append({"start": m.start(), "end": m.end()})
 
-                if key not in seen:
-                    seen.add(key)
-                    matches.append({
-                        "rule": rule["name"],
-                        "category": rule["category"],
-                        "severity": rule["severity"],
-                        "evidence": evidence,
-                    })
-                    categories.add(rule["category"])
-
-                break
+        if raw_spans:
+            merged_spans = merge_rule_spans(raw_spans)
+            primary_text = text[merged_spans[0]["start"]:merged_spans[0]["end"]]
+            matches.append({
+                "id": rule_id,
+                "rule": rule_name,
+                "name": rule_name,
+                "label": rule_name,
+                "category": rule_category,
+                "severity": rule_severity,
+                "severity_label": "HIGH" if rule_severity >= 20 else "CAUTIONARY",
+                "evidence": primary_text,
+                "matched_text": primary_text,
+                "spans": merged_spans,
+                "text": f"{rule_name}: matched '{primary_text}'",
+            })
+            categories.add(rule_category)
 
     # Contact-Domain Mismatch Indicator:
     # When text names a company AND contains an email address or link whose registrable domain
@@ -499,11 +550,25 @@ def get_rule_analysis(text: str) -> dict:
             if not corresponds:
                 flagged_mismatch_domains.add(reg_domain)
                 rule_name = f"Contact domain does not match the named company: {reg_domain}"
+                rule_id = f"contact_domain_mismatch_{re.sub(r'[^a-z0-9]+', '_', reg_domain.lower()).strip('_')}"
+                raw_contact = contact["raw"]
+                contact_spans = []
+                for m in re.finditer(re.escape(raw_contact), text, re.IGNORECASE):
+                    contact_spans.append({"start": m.start(), "end": m.end()})
+                merged_contact_spans = merge_rule_spans(contact_spans)
+                matched_str = text[merged_contact_spans[0]["start"]:merged_contact_spans[0]["end"]] if merged_contact_spans else raw_contact
                 matches.append({
+                    "id": rule_id,
                     "rule": rule_name,
+                    "name": rule_name,
+                    "label": rule_name,
                     "category": "job",
                     "severity": 25,
-                    "evidence": contact["raw"],
+                    "severity_label": "HIGH",
+                    "evidence": raw_contact,
+                    "matched_text": matched_str,
+                    "spans": merged_contact_spans,
+                    "text": f"{rule_name}: matched '{raw_contact}'",
                 })
                 categories.add("job")
 
