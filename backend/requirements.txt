@@ -8,4 +8,7 @@ requests==2.33.1
 tldextract==5.4.0
 transformers==5.24.1
 torch==2.15.0
+torchvision
 Pillow==12.3.0
+sentence-transformers[image]
+huggingface_hub

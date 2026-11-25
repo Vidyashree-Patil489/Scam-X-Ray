@@ -430,7 +430,7 @@ def analyze_image():
 
     # Lazy-load image detector to isolate dependencies and prevent startup failures
     try:
-        from services.image_detector import detect_image, ModelUnavailableError
+        from services.smaug_detector import detect_image
     except ImportError:
         app.logger.exception("Failed to import image_detector module")
         return jsonify({
@@ -438,14 +438,9 @@ def analyze_image():
             "error": "Image detection is temporarily unavailable"
         }), 503
 
-    try:
+        try:
         result = detect_image(img)
         return jsonify(result), 200
-    except ModelUnavailableError:
-        return jsonify({
-            "success": False,
-            "error": "Image detection is temporarily unavailable"
-        }), 503
     except Exception:
         app.logger.exception("Image detection inference failed")
         return jsonify({
