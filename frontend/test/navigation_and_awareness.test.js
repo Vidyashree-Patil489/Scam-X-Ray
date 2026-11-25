@@ -10,6 +10,8 @@ let server;
 let Sidebar;
 let SecurityAwareness;
 let App;
+let Dashboard;
+let Home;
 
 test.before(async () => {
   server = await createServer({
@@ -24,6 +26,12 @@ test.before(async () => {
 
   const appMod = await server.ssrLoadModule('./src/App.jsx');
   App = appMod.default;
+
+  const dashMod = await server.ssrLoadModule('./src/pages/Dashboard.jsx');
+  Dashboard = dashMod.default;
+
+  const homeMod = await server.ssrLoadModule('./src/pages/Home.jsx');
+  Home = homeMod.default;
 });
 
 test.after(async () => {
@@ -128,4 +136,78 @@ test('Security Awareness page renders all required educational content sections'
 
 test('App routes and components load without removed pages', () => {
   assert.ok(App);
+});
+
+test('Dashboard renders only Scam Detection and AI Image Detection tools, no history link', () => {
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: ['/dashboard'] },
+      React.createElement(Dashboard)
+    )
+  );
+
+  // Tool cards
+  assert.ok(html.includes('Scam Detection'));
+  assert.ok(html.includes('AI Image Detection'));
+  assert.equal(html.includes('Steganography Scanner'), false);
+  assert.equal(html.includes('Fact Checker'), false);
+
+  // Quick Access
+  assert.ok(html.includes('Security Awareness'));
+  assert.equal(html.includes('Scan History'), false);
+
+  // Recent Activity
+  assert.equal(html.includes('View All History'), false);
+  assert.ok(html.includes('Completed investigations across all four threat engines will be automatically archived here.'));
+});
+
+test('Home page renders updated copy, 2 detection engines, and no removed features', () => {
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: ['/'] },
+      React.createElement(Home)
+    )
+  );
+
+  // Hero
+  assert.ok(html.includes('From suspicious messages and links to AI-generated images, ScamXRay brings powerful digital threat analysis tools together in one place.'));
+  assert.ok(html.includes('>2<') && html.includes('Detection Engines'));
+  assert.equal(html.includes('Forensic Modules'), false);
+
+  // Floating tags
+  assert.equal(html.includes('Hidden Payload Check'), false);
+  assert.ok(html.includes('Threat Detected'));
+  assert.ok(html.includes('Suspicious URL'));
+  assert.ok(html.includes('AI Media Analysis'));
+
+  // Section heading and subtitle
+  assert.ok(html.includes('One Platform. Two Layers of Digital Protection.'));
+  assert.equal(html.includes('Four Layers'), false);
+  assert.ok(html.includes('A centralized digital safety platform designed to identify deceptive interactions across communications and media.'));
+
+  // Tool cards in Home
+  assert.ok(html.includes('Scam Detection'));
+  assert.ok(html.includes('AI Image Detection'));
+  assert.equal(html.includes('Steganography Scanner'), false);
+  assert.equal(html.includes('Fact Checker'), false);
+
+  // How ScamXRay Works steps
+  assert.ok(html.includes('Paste suspicious text, submit a link, or upload an image file.'));
+  assert.ok(html.includes('The dedicated engine analyzes heuristic rules, ML models, URL checks, or image signals.'));
+
+  // Why Consolidate Threat Verification cards
+  assert.ok(html.includes('Modern digital attacks rarely rely on a single vector. Fraudsters combine smishing, deceptive links, and synthetic media to build false credibility.'));
+  assert.ok(html.includes('Verify an internship message, scan its included link, and inspect an attached poster screenshot without juggling separate disjointed tools.'));
+  assert.ok(html.includes('Rather than returning an opaque black-box score, ScamXRay outlines exact matched heuristic rules, URL checks, or image-analysis signals.'));
+  assert.ok(html.includes('Scans operate without mandatory user tracking or credentials. No account or sign-in is needed to run a scan.'));
+
+  // CTA
+  assert.ok(html.includes('Access both digital threat intelligence engines instantly in your browser.'));
+
+  // Footer
+  assert.ok(html.includes('Intelligent digital safety platform unifying scam detection and synthetic media analysis.'));
+  assert.equal(html.includes('forensic steganography'), false);
+  assert.equal(html.includes('factual claim verification'), false);
 });

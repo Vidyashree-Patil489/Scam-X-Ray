@@ -4,8 +4,6 @@ import {
   ShieldIcon,
   MessageSquareIcon,
   EyeScanIcon,
-  BinaryFileIcon,
-  ScaleCheckIcon,
   ArrowRightIcon,
   CheckCircleIcon
 } from '../components/Icons';
@@ -32,36 +30,18 @@ export default function Home() {
       accent: '#ec4899',
       link: '/ai-image-detection',
     },
-    {
-      id: 'stego',
-      title: 'Steganography Scanner',
-      tagline: 'Hidden Payloads & Structural File Forensics',
-      description: 'Inspect images for concealed data, appended end-of-file (EOF) binary payloads, metadata discrepancies, and unusual least-significant-bit entropy variance.',
-      icon: BinaryFileIcon,
-      accent: '#06b6d4',
-      link: '/steganography',
-    },
-    {
-      id: 'fact-check',
-      title: 'Fact Checker',
-      tagline: 'Evidence Retrieval & Claim Verification',
-      description: 'Verify news headlines, viral claims, and questionable media against verified encyclopedic sources with structured verdicts and clickable citations.',
-      icon: ScaleCheckIcon,
-      accent: '#10b981',
-      link: '/fact-checker',
-    },
   ];
 
   const STEPS = [
     {
       step: '01',
       title: 'Submit Content',
-      desc: 'Paste suspicious text, submit a link, upload an image file, or enter a factual claim.',
+      desc: 'Paste suspicious text, submit a link, or upload an image file.',
     },
     {
       step: '02',
       title: 'Multi-Engine Analysis',
-      desc: 'The dedicated engine analyzes heuristic rules, ML models, file structures, or factual evidence.',
+      desc: 'The dedicated engine analyzes heuristic rules, ML models, URL checks, or image signals.',
     },
     {
       step: '03',
@@ -74,7 +54,6 @@ export default function Home() {
     { label: 'Threat Detected', top: '14%', right: '18%', delay: '0s', glow: 'rgba(239, 68, 68, 0.4)' },
     { label: 'Suspicious URL', top: '32%', right: '6%', delay: '1.2s', glow: 'rgba(245, 158, 11, 0.4)' },
     { label: 'AI Media Analysis', top: '56%', right: '8%', delay: '0.6s', glow: 'rgba(236, 72, 153, 0.4)' },
-    { label: 'Hidden Payload Check', top: '78%', right: '22%', delay: '1.8s', glow: 'rgba(6, 182, 212, 0.4)' },
   ];
 
   return (
@@ -303,7 +282,7 @@ export default function Home() {
                 maxWidth: 540,
               }}
             >
-              From suspicious messages and AI-generated images to hidden data and misleading claims, ScamXRay brings powerful digital threat analysis tools together in one place.
+              From suspicious messages and links to AI-generated images, ScamXRay brings powerful digital threat analysis tools together in one place.
             </p>
 
             {/* CTA Buttons */}
@@ -366,9 +345,9 @@ export default function Home() {
               }}
             >
               <div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#f0abfc' }}>4</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#f0abfc' }}>2</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Forensic Modules
+                  Detection Engines
                 </div>
               </div>
               <div style={{ width: 1, background: 'rgba(255, 255, 255, 0.12)' }} />
@@ -512,17 +491,18 @@ export default function Home() {
               marginBottom: 14,
             }}
           >
-            One Platform. Four Layers of Digital Protection.
+            One Platform. Two Layers of Digital Protection.
           </h2>
           <p style={{ fontSize: 16, color: '#64748b', maxWidth: 620, margin: '0 auto', lineHeight: 1.7 }}>
-            A centralized digital safety platform designed to identify deceptive interactions across communications, media, and factual content.
+            A centralized digital safety platform designed to identify deceptive interactions across communications and media.
           </p>
         </div>
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 440px))',
+            justifyContent: 'center',
             gap: 24,
           }}
         >
@@ -695,15 +675,15 @@ export default function Home() {
             Why Consolidate Threat Verification?
           </h2>
           <p style={{ fontSize: 15, color: '#64748b', maxWidth: 640, margin: '0 auto', lineHeight: 1.7 }}>
-            Modern digital attacks rarely rely on a single vector. Fraudsters combine smishing, deceptive links, synthetic media, and fake news to build false credibility.
+            Modern digital attacks rarely rely on a single vector. Fraudsters combine smishing, deceptive links, and synthetic media to build false credibility.
           </p>
         </div>
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-            gap: 20,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+            gap: 24,
           }}
         >
           <div className="card" style={{ padding: 26, border: '1px solid rgba(99, 102, 241, 0.12)' }}>
@@ -712,7 +692,7 @@ export default function Home() {
               <h4 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Cross-Domain Analysis</h4>
             </div>
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>
-              Verify an internship message, scan its included link, inspect an attached poster screenshot, and cross-reference recruiter claims without juggling separate disjointed tools.
+              Verify an internship message, scan its included link, and inspect an attached poster screenshot without juggling separate disjointed tools.
             </p>
           </div>
 
@@ -722,7 +702,7 @@ export default function Home() {
               <h4 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Transparent Explanations</h4>
             </div>
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>
-              Rather than returning an opaque black-box score, ScamXRay outlines exact matched heuristic rules, spectral noise distributions, or verified source citations.
+              Rather than returning an opaque black-box score, ScamXRay outlines exact matched heuristic rules, URL checks, or image-analysis signals.
             </p>
           </div>
 
@@ -732,7 +712,7 @@ export default function Home() {
               <h4 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Privacy & Data Integrity</h4>
             </div>
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: 0 }}>
-              Scans operate without mandatory user tracking or credentials. You maintain control over your inspection history and can clear all records at any time.
+              Scans operate without mandatory user tracking or credentials. No account or sign-in is needed to run a scan.
             </p>
           </div>
         </div>
@@ -766,7 +746,7 @@ export default function Home() {
           </h2>
 
           <p style={{ fontSize: 16, color: '#e2e8f0', marginBottom: 32, lineHeight: 1.7 }}>
-            Access all four digital threat intelligence engines instantly in your browser.
+            Access both digital threat intelligence engines instantly in your browser.
           </p>
 
           <button
@@ -831,7 +811,7 @@ export default function Home() {
               </span>
             </div>
             <p style={{ fontSize: 13, lineHeight: 1.7, color: '#94a3b8' }}>
-              Intelligent digital safety platform unifying scam detection, synthetic media analysis, forensic steganography, and factual claim verification.
+              Intelligent digital safety platform unifying scam detection and synthetic media analysis.
             </p>
           </div>
 
@@ -842,8 +822,6 @@ export default function Home() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
               <span onClick={() => navigate('/scam-detection')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>Scam Detection</span>
               <span onClick={() => navigate('/ai-image-detection')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>AI Image Detection</span>
-              <span onClick={() => navigate('/steganography')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>Steganography Scanner</span>
-              <span onClick={() => navigate('/fact-checker')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>Fact Checker</span>
             </div>
           </div>
 
@@ -853,7 +831,6 @@ export default function Home() {
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
               <span onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>Dashboard</span>
-              <span onClick={() => navigate('/history')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>Scan History</span>
               <span onClick={() => navigate('/security-awareness')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>Security Awareness</span>
               <span onClick={() => navigate('/about')} style={{ cursor: 'pointer', color: '#cbd5e1' }}>About Platform</span>
             </div>

@@ -3,8 +3,6 @@ import {
   ShieldIcon,
   MessageSquareIcon,
   EyeScanIcon,
-  BinaryFileIcon,
-  ScaleCheckIcon,
   ArrowRightIcon,
   LockIcon
 } from '../components/Icons';
@@ -41,28 +39,6 @@ export default function Dashboard() {
       accentColor: '#ec4899',
       badge: 'Visual Media Forensics',
       route: '/ai-image-detection',
-      actionLabel: 'Open Scanner',
-    },
-    {
-      id: 'steganography-scanner',
-      title: 'Steganography Scanner',
-      tagline: 'Hidden Information Forensics',
-      description: 'Inspect image files for hidden data, suspicious metadata and unusual file structures.',
-      icon: BinaryFileIcon,
-      accentColor: '#06b6d4',
-      badge: 'Binary Payload Inspection',
-      route: '/steganography',
-      actionLabel: 'Open Scanner',
-    },
-    {
-      id: 'fact-checker',
-      title: 'Fact Checker',
-      tagline: 'Evidence-Based Claim Verification',
-      description: 'Investigate claims using retrieved information and supporting evidence.',
-      icon: ScaleCheckIcon,
-      accentColor: '#10b981',
-      badge: 'Evidence Verification',
-      route: '/fact-checker',
       actionLabel: 'Open Scanner',
     },
   ];
@@ -322,17 +298,6 @@ export default function Dashboard() {
             >
               Recent Activity
             </h3>
-            <span
-              onClick={() => navigate('/history')}
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#6366f1',
-                cursor: 'pointer',
-              }}
-            >
-              View All History →
-            </span>
           </div>
 
           {/* Genuine Zero-State */}
@@ -383,32 +348,7 @@ export default function Dashboard() {
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Quick Access Link 1: Scan History */}
-            <div
-              onClick={() => navigate('/history')}
-              className="hover-lift"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '11px 14px',
-                borderRadius: 10,
-                background: '#f8f7ff',
-                border: '1px solid rgba(99, 102, 241, 0.12)',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <LockIcon size={16} color="#6366f1" />
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>Scan History</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Search past reports and forensic records</div>
-                </div>
-              </div>
-              <ArrowRightIcon size={13} color="#94a3b8" />
-            </div>
-
-            {/* Quick Access Link 2: Security Awareness */}
+            {/* Quick Access Link: Security Awareness */}
             <div
               onClick={() => navigate('/security-awareness')}
               className="hover-lift"
