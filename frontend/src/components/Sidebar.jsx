@@ -3,8 +3,6 @@ import {
   ShieldIcon,
   MessageSquareIcon,
   EyeScanIcon,
-  BinaryFileIcon,
-  ScaleCheckIcon,
   LockIcon
 } from './Icons';
 
@@ -12,9 +10,6 @@ const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: ShieldIcon },
   { path: '/scam-detection', label: 'Scam Detection', icon: MessageSquareIcon },
   { path: '/ai-image-detection', label: 'AI Image Detection', icon: EyeScanIcon },
-  { path: '/steganography', label: 'Steganography Scanner', icon: BinaryFileIcon },
-  { path: '/fact-checker', label: 'Fact Checker', icon: ScaleCheckIcon },
-  { path: '/history', label: 'Scan History', icon: LockIcon },
   { path: '/security-awareness', label: 'Security Awareness', icon: ShieldIcon },
   { path: '/settings', label: 'Settings', icon: LockIcon },
 ];

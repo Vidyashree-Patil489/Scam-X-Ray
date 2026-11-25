@@ -6,9 +6,6 @@ import Analyzer from './pages/Analyzer';
 import Results from './pages/Results';
 import About from './pages/About';
 import AIImageDetection from './pages/AIImageDetection';
-import SteganographyScanner from './pages/SteganographyScanner';
-import FactChecker from './pages/FactChecker';
-import ScanHistory from './pages/ScanHistory';
 import SecurityAwareness from './pages/SecurityAwareness';
 import Settings from './pages/Settings';
 
@@ -38,14 +35,10 @@ export default function App() {
           {/* AI Image Detection */}
           <Route path="/ai-image-detection" element={<AIImageDetection />} />
 
-          {/* Steganography Scanner */}
-          <Route path="/steganography" element={<SteganographyScanner />} />
-
-          {/* Fact Checker */}
-          <Route path="/fact-checker" element={<FactChecker />} />
-
-          {/* Scan History */}
-          <Route path="/history" element={<ScanHistory />} />
+          {/* Redirects for removed legacy tools so old bookmarks redirect gracefully */}
+          <Route path="/steganography" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/fact-checker" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/history" element={<Navigate to="/dashboard" replace />} />
 
           {/* Security Awareness */}
           <Route path="/security-awareness" element={<SecurityAwareness />} />
