@@ -1,11 +1,12 @@
 import io
 import logging
+import os
 from PIL import Image
 
 logger = logging.getLogger(__name__)
 
 # Pretrained AI image detection model
-MODEL_NAME = "aaronkantrowitz/ai-human-generated-image-detection"
+MODEL_NAME = os.getenv("IMAGE_MODEL_NAME", "aaronkantrowitz/ai-human-generated-image-detection")
 
 # Minimum confidence threshold for classification; predictions below 0.65 are Inconclusive
 CONFIDENCE_THRESHOLD = 0.65
@@ -33,8 +34,10 @@ def load_model():
     """
     global detector
 
-    if detector is None:
-        logger.info("Loading AI image detection model '%s'...", MODEL_NAME)
+    model_name = os.getenv("IMAGE_MODEL_NAME", MODEL_NAME)
+
+    if detector is None or getattr(detector, "_model_name", None) != model_name:
+        logger.info("Loading AI image detection model '%s'...", model_name)
         try:
             from transformers import pipeline
         except ImportError as err:
@@ -44,11 +47,12 @@ def load_model():
         try:
             detector = pipeline(
                 "image-classification",
-                model=MODEL_NAME
+                model=model_name
             )
+            detector._model_name = model_name
             logger.info("AI image detection model loaded successfully.")
         except Exception as err:
-            logger.exception("Failed to load or initialize AI image detection model '%s': %s", MODEL_NAME, err)
+            logger.exception("Failed to load or initialize AI image detection model '%s': %s", model_name, err)
             raise ModelUnavailableError("Failed to initialize image detection model") from err
 
     return detector
