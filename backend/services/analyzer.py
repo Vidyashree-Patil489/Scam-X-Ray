@@ -24,7 +24,9 @@ FALLBACK = {
 
 
 def _build_prompt(job_text, rule_flags, ml_score, is_ocr=False):
-    flags_text = "\n".join(f"- {f}" for f in rule_flags) if rule_flags else "None detected"
+    flags_text = "\n".join(
+        f"- {f.get('text', str(f)) if isinstance(f, dict) else f}" for f in rule_flags
+    ) if rule_flags else "None detected"
 
     visual_instruction = (
         "CRITICAL VISUAL LIMITATION: You are analyzing plain extracted text ONLY. "
@@ -153,20 +155,26 @@ def _build_templated_url_explanation(url: str, verdict: str, threat_score: int, 
         status_items.append(f"Checks not performed: {', '.join(not_performed)}.")
     status_summary = " ".join(status_items)
 
-    if verdict == "Suspicious / Potentially Fraudulent":
+    if verdict == "Malicious":
+        return (
+            f"Reputation feed lookup identified '{url}' as an active phishing link in the OpenPhish community database. "
+            f"The computed threat score is 100/100 based on this threat intelligence match. {status_summary} "
+            "Interaction with this link is strongly advised against."
+        )
+    elif verdict in ("Suspicious", "Suspicious / Potentially Fraudulent"):
         indicator_summary = "; ".join(f"{i['description']} ('{i['value']}')" for i in indicators[:2])
         return (
             f"Structural analysis of '{url}' identified {len(indicators)} significant threat indicator(s): {indicator_summary}. "
             f"The computed threat score is {threat_score}/100 based directly on these indicators. {status_summary} "
             "Interaction with this link is not advised."
         )
-    elif verdict == "Likely Legitimate":
+    elif verdict in ("No threat found", "Likely Legitimate"):
         return (
-            f"The URL '{url}' passed positive verification checks with zero structural threat indicators. "
+            f"The URL '{url}' completed infrastructure checks with zero structural threat indicators. "
             f"{status_summary} Valid TLS encryption and established domain registration were confirmed. "
-            "Basic checks passed; this is not a guarantee of safety."
+            "Basic checks passed; this does not constitute an absolute security guarantee."
         )
-    else:  # Unverified
+    else:  # Unknown / Unverified
         if is_reserved or any("example" in c.get("details", "").lower() for c in verification_checks):
             return (
                 f"The domain in '{url}' is an RFC 2606 / RFC 6761 reserved example domain designated exclusively for documentation and testing. "
@@ -193,11 +201,18 @@ def _build_url_safety_tips(verdict: str, indicators: list, is_reserved: bool = F
             "If this link appeared in a message claiming to be an active portal, treat the communication as a placeholder or spoofing test.",
         ]
 
-    # Likely Legitimate gets at most two lines
-    if verdict == "Likely Legitimate":
+    if verdict == "Malicious":
+        return [
+            "Do not open this link or submit passwords, credentials, or personal data.",
+            "If received in an unsolicited message, email, or job offer, report and block the sender.",
+            "If you already visited the link, immediately reset passwords on affected accounts and review device security.",
+        ]
+
+    # No threat found / Likely Legitimate gets at most two lines (no 'safe', 'clean', or 'verified')
+    if verdict in ("No threat found", "Likely Legitimate"):
         return [
             "Confirm that the browser address bar displays the expected domain name without typos.",
-            "Ensure the site uses a secure HTTPS connection before submitting any data.",
+            "Ensure the site uses HTTPS encryption before submitting any confidential information.",
         ]
 
     tips = []
@@ -248,8 +263,14 @@ def validate_url_ai_output(ai_exp: str, verdict: str, indicators: list, verifica
     has_fraud_claim = any(re.search(r"\b" + re.escape(w) + r"\b", ai_exp, re.IGNORECASE) for w in fraud_keywords)
     has_critical_or_high = any(i.get("severity") in ["critical", "high"] for i in indicators)
 
-    if has_fraud_claim and (not has_critical_or_high or verdict != "Suspicious / Potentially Fraudulent"):
-        return fallback or "No active threat indicators detected; unverified domain."
+    if has_fraud_claim and (not has_critical_or_high or verdict not in ("Suspicious", "Suspicious / Potentially Fraudulent", "Malicious")):
+        return fallback or "No active threat indicators detected; unconfirmed domain."
+
+    # Verdict 'No threat found' must NEVER contain words 'safe', 'verified', or 'clean'
+    if verdict in ("No threat found", "Likely Legitimate"):
+        for forbidden in ["safe", "verified", "clean"]:
+            if re.search(r"\b" + re.escape(forbidden), ai_exp, re.IGNORECASE):
+                return fallback
 
     if "query" in ai_exp.lower() and not any(i.get("id") == "external_redirect_param" for i in indicators):
         return fallback or "No active threat indicators detected; unverified domain."

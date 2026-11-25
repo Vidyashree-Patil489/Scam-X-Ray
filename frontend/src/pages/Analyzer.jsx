@@ -180,7 +180,7 @@ export default function Analyzer() {
   // Core Analysis Submission (Preserves /analyze backend workflow exactly)
   const executeAnalysis = async (contentPayload) => {
     const { text = '', url = '' } = contentPayload;
-    const cleanText = text.trim();
+    const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
     const cleanUrl = url.trim();
 
     if (!cleanText && !cleanUrl) {
@@ -241,7 +241,7 @@ export default function Analyzer() {
       const finalResult = {
         ...parsedResult,
         input_type: activeTab === 'text' ? 'Text / Message' : activeTab === 'url' ? 'URL' : 'Screenshot OCR',
-        jobText: cleanText,
+        jobText: data.jobText || data.text || cleanText,
         url: cleanUrl,
       };
 

@@ -7,6 +7,7 @@ if _BACKEND_DIR not in sys.path:
 import unittest
 from unittest.mock import patch
 import json
+import requests
 from services.url_analyzer import (
     analyze_url,
     extract_threat_indicators,
@@ -24,13 +25,13 @@ class URLRegressionTests(unittest.TestCase):
         self.app = app.test_client()
 
     def test_01_reserved_domain_graceful(self):
-        """Test 1: https://graceful.example.com/ -> Unverified, reserved domain, 0 indicators"""
+        """Test 1: https://graceful.example.com/ -> Unknown, reserved domain, 0 indicators"""
         url = "https://graceful.example.com/"
         res = analyze_url(url, execute_network=True)
 
         self.assertEqual(res["threat_score"], 0)
         self.assertEqual(len(res["indicators"]), 0)
-        self.assertEqual(res["verdict"], "Unverified")
+        self.assertEqual(res["verdict"], "Unknown")
         self.assertTrue(res["is_reserved_example"])
         self.assertIn("reserved", res["verdict_reason"].lower())
 
@@ -52,7 +53,7 @@ class URLRegressionTests(unittest.TestCase):
         data = json.loads(response.data)
 
         self.assertEqual(data["risk_score"], 0)
-        self.assertEqual(data["url_verdict"], "Unverified")
+        self.assertEqual(data["url_verdict"], "Unknown")
         self.assertIsNone(data["ml_score"])
         self.assertIsNone(data["rule_score"])
         self.assertIsNone(data["llm_score"])
@@ -63,7 +64,7 @@ class URLRegressionTests(unittest.TestCase):
         url = "https://paypal.com.secure-login.xyz/verify"
         res = analyze_url(url, execute_network=False)
 
-        self.assertEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
+        self.assertEqual(res["verdict"], "Suspicious")
         indicator_ids = [ind["id"] for ind in res["indicators"]]
         self.assertIn("subdomain_brand_spoof", indicator_ids)
         self.assertGreaterEqual(res["threat_score"], 35)
@@ -73,7 +74,7 @@ class URLRegressionTests(unittest.TestCase):
         url = "http://user@evil-site.com/"
         res = analyze_url(url, execute_network=False)
 
-        self.assertEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
+        self.assertEqual(res["verdict"], "Suspicious")
         indicator_ids = [ind["id"] for ind in res["indicators"]]
         self.assertIn("userinfo_trick", indicator_ids)
         self.assertGreaterEqual(res["threat_score"], 70)
@@ -88,11 +89,11 @@ class URLRegressionTests(unittest.TestCase):
 
     def test_06_private_and_localhost_ssrf(self):
         """Test 6: http://192.168.1.1/login and http://localhost:5000/
-        -> Unverified, blocked from fetching (SSRF protection), not Suspicious purely for being private"""
+        -> Unknown, blocked from fetching (SSRF protection), not Suspicious purely for being private"""
         for url in ["http://192.168.1.1/login", "http://localhost:5000/"]:
             res = analyze_url(url, execute_network=True)
-            self.assertEqual(res["verdict"], "Unverified", f"Failed for {url}")
-            self.assertNotEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
+            self.assertEqual(res["verdict"], "Unknown", f"Failed for {url}")
+            self.assertNotEqual(res["verdict"], "Suspicious")
             self.assertEqual(res["threat_score"], 0)
             dns_checks = [c for c in res["verification_checks"] if c["name"] == "DNS Resolution"]
             if dns_checks:
@@ -100,7 +101,7 @@ class URLRegressionTests(unittest.TestCase):
 
     def test_07_failed_network_checks_unverified(self):
         """Test 7: https://example-unknown-shop.com/?id=7f3a9c2e with DNS/RDAP/TLS all failing
-        -> Unverified with 'checks failed', NOT Suspicious"""
+        -> Unknown with 'checks failed', NOT Suspicious"""
         url = "https://example-unknown-shop.com/?id=7f3a9c2e"
         with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
              patch('services.url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN")), \
@@ -109,12 +110,12 @@ class URLRegressionTests(unittest.TestCase):
              patch('services.url_analyzer.check_http_reachability', return_value=(False, "Unreachable")):
             res = analyze_url(url, execute_network=True)
             self.assertEqual(res["threat_score"], 0)
-            self.assertEqual(res["verdict"], "Unverified")
-            self.assertNotEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
+            self.assertEqual(res["verdict"], "Unknown")
+            self.assertNotEqual(res["verdict"], "Suspicious")
 
     def test_08_legitimate_verified(self):
         """Test 8: Same URL with mocked valid TLS, 5-year domain age, resolves, no indicators
-        -> Likely Legitimate"""
+        -> No threat found"""
         url = "https://example-unknown-shop.com/?id=7f3a9c2e"
         with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
              patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved to 93.184.216.34")), \
@@ -123,7 +124,7 @@ class URLRegressionTests(unittest.TestCase):
              patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
             res = analyze_url(url, execute_network=True)
             self.assertEqual(res["threat_score"], 0)
-            self.assertEqual(res["verdict"], "Likely Legitimate")
+            self.assertEqual(res["verdict"], "No threat found")
 
     def test_09_external_redirect_param(self):
         """Test 9: https://safe-looking.com/?next=https://evil.com -> external_redirect_param medium (20 pts)"""
@@ -133,7 +134,7 @@ class URLRegressionTests(unittest.TestCase):
         indicator_ids = [ind["id"] for ind in res["indicators"]]
         self.assertIn("external_redirect_param", indicator_ids)
         self.assertEqual(res["threat_score"], 20)
-        self.assertEqual(res["verdict"], "Unverified")
+        self.assertEqual(res["verdict"], "Unknown")
 
     def test_10_redirect_to_private_ip_ssrf(self):
         """Test 10: Mock redirect to a private IP -> blocked by SSRF"""
@@ -147,7 +148,7 @@ class URLRegressionTests(unittest.TestCase):
     def test_11_ai_hallucination_discarded(self):
         """Test 11: AI returns 'highly likely scam' citing only query params -> backend discards it"""
         url = "https://stick.example.com/?lazy=better&conscious=separate"
-        verdict = "Unverified"
+        verdict = "Unknown"
         indicators = []
 
         bad_ai_text = "This URL is a dangerous scam because the query parameters lazy=better look suspicious and malicious."
@@ -215,7 +216,7 @@ class URLRegressionTests(unittest.TestCase):
         """Test a: paypa1-secure-login.com and sbi-kyc-update.in -> Suspicious, brand_lookalike_domain critical"""
         for target in ["https://paypa1-secure-login.com/", "https://sbi-kyc-update.in"]:
             res = analyze_url(target, execute_network=False)
-            self.assertEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
+            self.assertEqual(res["verdict"], "Suspicious")
             ind_ids = {i["id"] for i in res["indicators"]}
             self.assertIn("brand_lookalike_domain", ind_ids)
             crit_ind = next(i for i in res["indicators"] if i["id"] == "brand_lookalike_domain")
@@ -245,12 +246,12 @@ class URLRegressionTests(unittest.TestCase):
                 lookalike_ids = [i["id"] for i in res["indicators"] if "lookalike" in i["id"] or "spoof" in i["id"]]
                 self.assertEqual(lookalike_ids, [], f"Unexpected lookalike flag on legitimate {cand}")
                 self.assertEqual(res["threat_score"], 0)
-                self.assertEqual(res["verdict"], "Likely Legitimate")
+                self.assertEqual(res["verdict"], "No threat found")
 
     def test_c_user_content_platforms(self):
         """Test c: github.com/user/repo, someuser.github.io, forms.gle/abc, t.me/channel
-        with mocked passing verification -> Unverified, user_content_platform, not Likely Legitimate.
-        bare https://github.com/ -> Likely Legitimate"""
+        with mocked passing verification -> Unknown, user_content_platform, not No threat found.
+        bare https://github.com/ -> No threat found"""
         user_content_urls = [
             "https://github.com/someuser/somerepo",
             "https://someuser.github.io",
@@ -264,19 +265,19 @@ class URLRegressionTests(unittest.TestCase):
              patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             for u in user_content_urls:
                 res = analyze_url(u, execute_network=True)
-                self.assertEqual(res["verdict"], "Unverified", f"{u} must be Unverified")
-                self.assertNotEqual(res["verdict"], "Likely Legitimate")
+                self.assertEqual(res["verdict"], "Unknown", f"{u} must be Unknown")
+                self.assertNotEqual(res["verdict"], "No threat found")
                 ind_ids = {i["id"] for i in res["indicators"]}
                 self.assertIn("user_content_platform", ind_ids)
                 self.assertIn("user-content platform", res["verdict_reason"])
 
             # Bare root github.com/
             res_bare = analyze_url("https://github.com/", execute_network=True)
-            self.assertEqual(res_bare["verdict"], "Likely Legitimate")
+            self.assertEqual(res_bare["verdict"], "No threat found")
             self.assertNotIn("user_content_platform", [i["id"] for i in res_bare["indicators"]])
 
     def test_d_new_domain_age_scoring(self):
-        """Test d: Clean domain with mocked age 3 days -> Unverified, new_domain, score 25.
+        """Test d: Clean domain with mocked age 3 days -> Unknown, new_domain, score 25.
         Same domain with a brand token plus security word -> Suspicious"""
         with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
              patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
@@ -285,13 +286,13 @@ class URLRegressionTests(unittest.TestCase):
              patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             # Clean domain
             res_clean = analyze_url("https://clean-innovative-tech.com", execute_network=True)
-            self.assertEqual(res_clean["verdict"], "Unverified")
+            self.assertEqual(res_clean["verdict"], "Unknown")
             self.assertEqual(res_clean["threat_score"], 25)
             self.assertIn("new_domain", [i["id"] for i in res_clean["indicators"]])
 
             # Brand lookalike domain with new domain age
             res_brand = analyze_url("https://paypal-secure-portal.com", execute_network=True)
-            self.assertEqual(res_brand["verdict"], "Suspicious / Potentially Fraudulent")
+            self.assertEqual(res_brand["verdict"], "Suspicious")
             self.assertGreaterEqual(res_brand["threat_score"], 70)
 
     def test_e_paypal_subdomain_spoof_age_label(self):
@@ -303,17 +304,17 @@ class URLRegressionTests(unittest.TestCase):
              patch('services.url_analyzer.check_domain_age', return_value=(True, False, "Newly registered (3 days ago)")), \
              patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200")):
             res = analyze_url("https://paypal.com.secure-login.xyz/verify", execute_network=True)
-            self.assertEqual(res["verdict"], "Suspicious / Potentially Fraudulent")
+            self.assertEqual(res["verdict"], "Suspicious")
             age_check = next(c for c in res["verification_checks"] if c["name"] == "Domain Age (RDAP)")
             self.assertEqual(age_check["details"], "Newly registered (3 days ago)")
             self.assertNotIn("Established", age_check["details"])
 
     def test_f_redirect_and_same_site_targets(self):
-        """Test f: safe-looking.com/?next=https://evil.com (unresolvable) -> Unverified, redirect indicator, score 20.
+        """Test f: safe-looking.com/?next=https://evil.com (unresolvable) -> Unknown, redirect indicator, score 20.
         shop.example.org/login?next=/account -> no indicator"""
         # safe-looking.com pointing to external target
         res_ext = analyze_url("https://safe-looking.com/?next=https://evil.com", execute_network=False)
-        self.assertEqual(res_ext["verdict"], "Unverified")
+        self.assertEqual(res_ext["verdict"], "Unknown")
         self.assertEqual(res_ext["threat_score"], 20)
         self.assertEqual(len(res_ext["indicators"]), 1)
         self.assertEqual(res_ext["indicators"][0]["id"], "external_redirect_param")
@@ -329,7 +330,7 @@ class URLRegressionTests(unittest.TestCase):
         with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
              patch('services.url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN")):
             res = analyze_url("https://safe-looking.com/?next=https://evil.com", execute_network=True)
-            self.assertEqual(res["verdict"], "Unverified")
+            self.assertEqual(res["verdict"], "Unknown")
 
             # Check statuses
             checks = {c["name"]: c for c in res["verification_checks"]}
@@ -358,7 +359,7 @@ class URLRegressionTests(unittest.TestCase):
         'Verification unavailable: no network from the server', no domain blame"""
         with patch('services.url_analyzer.check_server_connectivity', return_value=False):
             res = analyze_url("https://unknown-site.org/portal", execute_network=True)
-            self.assertEqual(res["verdict"], "Unverified")
+            self.assertEqual(res["verdict"], "Unknown")
             self.assertEqual(res["threat_score"], 0)
             for c in res["verification_checks"]:
                 self.assertEqual(c["status"], "not_performed")
@@ -371,7 +372,110 @@ class URLRegressionTests(unittest.TestCase):
         res = analyze_url("https://stick.example.com/?lazy=better&conscious=separate", execute_network=False)
         self.assertEqual(len(res["indicators"]), 0)
         self.assertEqual(res["threat_score"], 0)
-        self.assertEqual(res["verdict"], "Unverified")
+        self.assertEqual(res["verdict"], "Unknown")
+
+    # =========================================================================
+    # REPUTATION FEED & FOUR-VERDICT TESTS
+    # =========================================================================
+
+    def test_url_openphish_feed_match_malicious(self):
+        """1. Feed match -> Malicious (threat score 100, confidence high)"""
+        url = "https://active-phish-portal.com/login"
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish",
+            "status": "match",
+            "detail": "Exact URL matched active phishing entry in OpenPhish feed (https://active-phish-portal.com/login)"
+        }):
+            res = analyze_url(url, execute_network=False)
+            self.assertEqual(res["verdict"], "Malicious")
+            self.assertEqual(res["threat_score"], 100)
+            self.assertEqual(res["confidence"], "high")
+            ind_ids = [i["id"] for i in res["indicators"]]
+            self.assertIn("openphish_reputation_match", ind_ids)
+            self.assertIn("OpenPhish", res["verdict_reason"])
+            self.assertTrue(any(e["source"] == "OpenPhish Community Feed" for e in res["evidence"]))
+            self.assertIn("No match in a feed does not mean the link is safe", res["limitations"])
+
+    def test_url_openphish_feed_unavailable_not_checked_verdict_not_raised(self):
+        """2. Feed unavailable -> 'not_checked' and verdict not raised"""
+        url = "https://graceful.example.com/"
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish",
+            "status": "not_checked",
+            "detail": "OpenPhish feed unavailable and no local cache exists"
+        }):
+            res = analyze_url(url, execute_network=False)
+            self.assertEqual(res["verdict"], "Unknown")
+            self.assertEqual(res["threat_score"], 0)
+            self.assertNotIn("Malicious", res["verdict"])
+            self.assertNotIn("Suspicious", res["verdict"])
+            # Evidence shows lookup was not performed / unavailable
+            openphish_ev = next(e for e in res["evidence"] if e["source"] == "OpenPhish Community Feed")
+            self.assertIn("unavailable", openphish_ev["result"])
+
+    def test_url_lookalike_domain_suspicious(self):
+        """3. Lookalike domain -> Suspicious"""
+        url = "https://paypa1-secure-login.com/"
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish", "status": "no_match", "detail": "Not in feed"
+        }):
+            res = analyze_url(url, execute_network=False)
+            self.assertEqual(res["verdict"], "Suspicious")
+            self.assertGreaterEqual(res["threat_score"], 35)
+            self.assertIn(res["confidence"], ["high", "medium"])
+            self.assertTrue(any("lookalike" in i["id"] for i in res["indicators"]))
+
+    def test_url_github_repo_unknown_with_platform_reason(self):
+        """4. github.com repo -> Unknown with platform reason"""
+        url = "https://github.com/user/project-repo"
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish", "status": "no_match", "detail": "Not in feed"
+        }):
+            res = analyze_url(url, execute_network=False)
+            self.assertEqual(res["verdict"], "Unknown")
+            self.assertEqual(res["threat_score"], 0)
+            self.assertIn("user-content platform", res["verdict_reason"].lower())
+            self.assertTrue(any(i["id"] == "user_content_platform" for i in res["indicators"]))
+
+    def test_url_unreachable_site_unknown(self):
+        """5. Unreachable site -> Unknown (failed checks must never raise threat level)"""
+        url = "https://unreachable-test-domain-404xyz.com/"
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.check_openphish', return_value={"source": "OpenPhish", "status": "no_match", "detail": "Clean"}), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(False, [], "NXDOMAIN host not found")):
+            res = analyze_url(url, execute_network=True)
+            self.assertEqual(res["verdict"], "Unknown")
+            self.assertEqual(res["threat_score"], 0)
+            self.assertNotIn("Suspicious", res["verdict"])
+            self.assertIn("failed", res["verdict_reason"].lower())
+
+    def test_url_clean_site_all_checks_passed_no_threat_found(self):
+        """6. Clean site with all checks passed -> No threat found (NEVER use words 'safe', 'verified', or 'clean')"""
+        url = "https://legit-business-portal.com/"
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.check_openphish', return_value={"source": "OpenPhish", "status": "no_match", "detail": "No match"}), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved to 93.184.216.34")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2018)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
+            res = analyze_url(url, execute_network=True)
+            self.assertEqual(res["verdict"], "No threat found")
+            self.assertEqual(res["threat_score"], 0)
+            self.assertEqual(res["confidence"], "high")
+            # Strict word checks: NEVER use words 'safe', 'verified', or 'clean'
+            for forbidden in ["safe", "verified", "clean"]:
+                self.assertNotIn(forbidden, res["verdict"].lower(), f"Verdict contains forbidden word '{forbidden}'")
+                self.assertNotIn(forbidden, res["verdict_reason"].lower(), f"Reason contains forbidden word '{forbidden}'")
+
+    def test_url_random_query_string_alone_not_suspicious(self):
+        """7. Random query string alone does not give Suspicious"""
+        url = "https://generic-site-test.com/?session_token=a9f3b281c7e4&rand_param=847392"
+        with patch('services.url_analyzer.check_openphish', return_value={"source": "OpenPhish", "status": "no_match", "detail": "No match"}):
+            res = analyze_url(url, execute_network=False)
+            self.assertNotEqual(res["verdict"], "Suspicious")
+            self.assertEqual(res["verdict"], "Unknown")
+            self.assertEqual(res["threat_score"], 0)
+            self.assertEqual(len(res["indicators"]), 0)
 
     def test_fixtures_a_through_e(self):
         """Test Fixtures A through E with exact OCR noise and legitimate-context guards"""
@@ -658,6 +762,443 @@ Reply to this email to confirm. - Meena S, HR, Zoho Corporation"""
                 data["allowed_levels"],
                 f"Fixture {name} risk level {res['risk_level']} not in {data['allowed_levels']}. Full res: {res}"
             )
+
+    def test_unusual_tld_does_not_block_no_threat_found(self):
+        """Issue 1: Uncommon TLD (.xyz) is info (0 pts) and does not block 'No threat found' when checks pass."""
+        url = "https://abc.xyz"
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved to 1.2.3.4")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid certificate for domain")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2015)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "Reachable (HTTP 200)")):
+            res = analyze_url(url, execute_network=True)
+            self.assertEqual(res["threat_score"], 0)
+            self.assertEqual(res["verdict"], "No threat found")
+            tld_ind = next((i for i in res["indicators"] if i["id"] == "suspicious_tld"), None)
+            self.assertIsNotNone(tld_ind)
+            self.assertEqual(tld_ind["severity"], "info")
+            self.assertEqual(tld_ind["points"], 0)
+            self.assertIn("Uncommon top-level domain; not a threat signal on its own.", tld_ind["description"])
+            self.assertNotIn("associated with elevated abuse frequency", tld_ind["description"])
+
+    def test_network_retries_and_failed_check_stays_safe(self):
+        """Issue 2: RDAP and HTTP reachability retry once on timeout; permanent failure stays 'failed' and never raises threat score."""
+        from services.url_analyzer import check_domain_age, check_http_reachability
+        import requests
+
+        # RDAP: 1st attempt fails, 2nd attempt succeeds
+        mock_resp = unittest.mock.MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "events": [{"eventAction": "registration", "eventDate": "2018-01-01T00:00:00Z"}]
+        }
+        with patch('requests.get', side_effect=[requests.exceptions.Timeout("Timed out"), mock_resp]) as mock_get:
+            performed, is_est, msg = check_domain_age("example.com", timeout=5.0, max_retries=1)
+            self.assertTrue(performed)
+            self.assertTrue(is_est)
+            self.assertEqual(mock_get.call_count, 2)
+
+        # HTTP: times out on both attempts -> stays 'failed', does not raise threat level
+        with patch('requests.Session.get', side_effect=requests.exceptions.Timeout("HTTP timeout")):
+            ok, msg = check_http_reachability("https://example.com", timeout=5.0, max_retries=1)
+            self.assertFalse(ok)
+            self.assertTrue("Connection timed out" in msg or "HTTP reachability check failed" in msg)
+
+        # When network checks fail after retry, verdict is Unknown and threat score remains 0
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(False, False, "RDAP timed out")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(False, "HTTP timed out")):
+            res = analyze_url("https://example.com", execute_network=True)
+            self.assertEqual(res["threat_score"], 0)
+            self.assertEqual(res["verdict"], "Unknown")
+            self.assertNotEqual(res["verdict"], "Suspicious")
+
+    def test_redirect_normalisation_and_uppercase_hosts(self):
+        """Issue 3: WWW.GOOGLE.COM/ normalises to https://www.google.com/, follows redirects safely."""
+        from services.url_analyzer import normalize_url, check_http_reachability
+
+        # Normalization
+        norm1 = normalize_url("WWW.GOOGLE.COM/")
+        self.assertEqual(norm1["normalized_url"], "https://www.google.com/")
+        self.assertEqual(norm1["host"], "www.google.com")
+
+        norm2 = normalize_url("www.google.com")
+        self.assertEqual(norm2["normalized_url"], "https://www.google.com/")
+
+        norm3 = normalize_url("http://www.google.com")
+        self.assertEqual(norm3["normalized_url"], "http://www.google.com/")
+
+        # Relative and protocol-relative redirect handling in check_http_reachability
+        redirect_resp_1 = unittest.mock.MagicMock()
+        redirect_resp_1.is_redirect = True
+        redirect_resp_1.status_code = 301
+        redirect_resp_1.headers = {"Location": "/search?q=test"}
+
+        final_resp = unittest.mock.MagicMock()
+        final_resp.is_redirect = False
+        final_resp.status_code = 200
+
+        with patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["1.2.3.4"], "Resolved")), \
+             patch('requests.Session.get', side_effect=[redirect_resp_1, final_resp]):
+            ok, msg = check_http_reachability("WWW.GOOGLE.COM/")
+            self.assertTrue(ok)
+            self.assertIn("HTTP 200", msg)
+
+    def test_input_validation_whitespace_and_multiple_urls(self):
+        """Issue 4: Input with whitespace or multiple URLs returns HTTP 400 with 'Enter one URL at a time'."""
+        invalid_inputs = [
+            "a b",
+            "https://abc.xyz https://google.com",
+            "https://abc.xyz,https://google.com",
+            "https://abc.xyz\nhttps://google.com",
+            "   https://abc.xyz   https://google.com   ",
+        ]
+        for bad_url in invalid_inputs:
+            resp = self.app.post('/analyze', json={'url': bad_url, 'input_type': 'url'})
+            self.assertEqual(resp.status_code, 400, f"Expected 400 for input: {repr(bad_url)}")
+            data = json.loads(resp.data)
+            self.assertEqual(data.get("error"), "Enter one URL at a time", f"Failed on input: {repr(bad_url)}")
+
+        # Ensure single valid URLs with open redirect parameters are NOT falsely rejected
+        valid_single_urls = [
+            "https://abc.xyz",
+            "WWW.GOOGLE.COM/",
+            "https://safe-looking.com/?next=https://evil.com",
+            "https://www.google.com/search?q=x8f3k2j9d0a1b7c4",
+        ]
+        for good_url in valid_single_urls:
+            resp = self.app.post('/analyze', json={'url': good_url, 'input_type': 'url'})
+            self.assertNotEqual(resp.status_code, 400, f"Valid URL was unexpectedly rejected: {good_url}")
+
+    def test_ssrf_hardened_address_blocking(self):
+        """Part A: Non-public addresses in any form (trailing-dot, decimal, hex, IPv6, IPv4-mapped, localhost, DNS rebinding)
+        are blocked from DNS/TLS/RDAP/HTTP and external reputation calls.
+        """
+        from services.url_analyzer import analyze_url_comprehensive
+
+        blocked_test_urls = [
+            ("http://169.254.169.254.", False),
+            ("http://169.254.169.254", False),
+            ("http://2130706433", False),
+            ("http://0x7f000001", False),
+            ("http://[::1]", False),
+            ("http://[::ffff:127.0.0.1]", False),
+            ("http://localhost", False),
+            ("http://sub.localhost:8080", False),
+            ("http://test.local", False),
+            ("http://app.internal", False),
+            ("http://localtest.me", True),  # needs DNS resolution mock to 127.0.0.1
+        ]
+
+        expected_detail = "Blocked: private or internal address; ScamXRay does not connect to it"
+
+        for test_url, is_rebind in blocked_test_urls:
+            with patch('services.url_analyzer.check_tls_cert') as mock_tls, \
+                 patch('services.url_analyzer.check_domain_age') as mock_age, \
+                 patch('services.url_analyzer.check_http_reachability') as mock_http, \
+                 patch('services.url_analyzer.check_openphish') as mock_op:
+
+                if is_rebind:
+                    with patch('services.url_analyzer.safe_resolve_dns', return_value=(False, ["127.0.0.1"], "Blocked: resolved to private or internal address (127.0.0.1)")):
+                        res = analyze_url_comprehensive(test_url, execute_network=True)
+                else:
+                    res = analyze_url_comprehensive(test_url, execute_network=True)
+
+                self.assertEqual(res["verdict"], "Unknown", f"Expected Unknown for {test_url}, got {res['verdict']}")
+                self.assertIn("private", res["verdict_reason"].lower(), f"Verdict reason should mention private/internal address for {test_url}")
+                
+                # Verify network checks were NOT called
+                mock_tls.assert_not_called()
+                mock_age.assert_not_called()
+                mock_http.assert_not_called()
+                mock_op.assert_not_called()
+
+                # Verify all verification checks show not_performed with the required detail
+                for check in res["verification_checks"]:
+                    self.assertEqual(check["status"], "not_performed", f"Check {check['name']} not 'not_performed' for {test_url}")
+                    self.assertEqual(check["details"], expected_detail, f"Check {check['name']} detail mismatch for {test_url}")
+
+                # Verify evidence shows not_checked
+                for ev in res["evidence"]:
+                    if ev.get("source") == "OpenPhish Community Feed":
+                        self.assertEqual(ev.get("status"), "not_checked", f"Reputation source {ev['source']} should be not_checked for {test_url}")
+                        self.assertIn("blocked", ev.get("result", "").lower())
+
+    def test_unsupported_schemes_rejected_400(self):
+        """Part A: Schemes other than http and https return HTTP 400 with 'Only http and https links are supported'."""
+        bad_schemes = [
+            "file:///etc/passwd",
+            "ftp://example.com/files",
+            "javascript:alert(1)",
+            "data:text/html,<html>test</html>",
+            "gopher://gopher.floodgap.com",
+            "mailto:admin@example.com",
+        ]
+        for bad_url in bad_schemes:
+            resp = self.app.post('/analyze', json={'url': bad_url, 'input_type': 'url'})
+            self.assertEqual(resp.status_code, 400, f"Expected 400 for scheme: {bad_url}")
+            data = json.loads(resp.data)
+            self.assertEqual(data.get("error"), "Only http and https links are supported", f"Failed for {bad_url}")
+
+    def test_public_ip_literal_is_suspicious_and_checked(self):
+        """Part A: Public IP literals such as http://8.8.8.8/login must still be Suspicious and go through normal checks."""
+        with patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(False, {"valid": False}, "URL specifies unencrypted HTTP protocol")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(False, False, "Private IP or local host has no public domain registry")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "Reachable (HTTP 200)")):
+            res = analyze_url("http://8.8.8.8/login", execute_network=True)
+            self.assertEqual(res["verdict"], "Suspicious")
+            self.assertGreaterEqual(res["threat_score"], 35)
+            self.assertTrue(any(i["id"] == "ip_literal_host" for i in res["indicators"]))
+            dns_chk = next(c for c in res["verification_checks"] if c["name"] == "DNS Resolution")
+            self.assertEqual(dns_chk["status"], "performed")
+
+    def test_openphish_reputation_and_verdict_rules(self):
+        """OpenPhish reputation lookup and verdict rules:
+        - match -> Malicious (threat_score 100)
+        - no_match + clean infrastructure -> No threat found
+        - feed unavailable (failed) + clean infrastructure -> Unknown (A reputation check could not be completed)
+        - feed unavailable does not raise verdict to Suspicious or Malicious
+        """
+        # 1. Match -> Malicious
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish", "status": "match", "detail": "Matched active OpenPhish entry"
+        }), \
+             patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2018)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
+            res_mal = analyze_url("https://phishing-site-test.com/login", execute_network=True)
+            self.assertEqual(res_mal["verdict"], "Malicious")
+            self.assertEqual(res_mal["threat_score"], 100)
+            op_ev = next(e for e in res_mal["evidence"] if e["source"] == "OpenPhish Community Feed")
+            self.assertEqual(op_ev["status"], "match")
+
+        # 2. No match + clean infrastructure -> No threat found
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish", "status": "no_match", "detail": "Not in feed"
+        }), \
+             patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2018)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
+            res_clean = analyze_url("https://clean-site-test.com", execute_network=True)
+            self.assertEqual(res_clean["verdict"], "No threat found")
+            self.assertEqual(res_clean["threat_score"], 0)
+            op_ev = next(e for e in res_clean["evidence"] if e["source"] == "OpenPhish Community Feed")
+            self.assertEqual(op_ev["status"], "no_match")
+
+        # 3. Feed unavailable (failed) + clean infrastructure -> Unknown
+        with patch('services.url_analyzer.check_openphish', return_value={
+            "source": "OpenPhish", "status": "not_checked", "detail": "Feed unavailable", "failed": True
+        }), \
+             patch('services.url_analyzer.check_server_connectivity', return_value=True), \
+             patch('services.url_analyzer.safe_resolve_dns', return_value=(True, ["93.184.216.34"], "Resolved")), \
+             patch('services.url_analyzer.check_tls_cert', return_value=(True, {"valid": True}, "Valid TLS")), \
+             patch('services.url_analyzer.check_domain_age', return_value=(True, True, "Established (registered 2018)")), \
+             patch('services.url_analyzer.check_http_reachability', return_value=(True, "HTTP 200 OK")):
+            res_unavail = analyze_url("https://clean-site-test.com", execute_network=True)
+            self.assertEqual(res_unavail["verdict"], "Unknown")
+            self.assertEqual(res_unavail["threat_score"], 0)
+            self.assertEqual(res_unavail["verdict_reason"], "A reputation check could not be completed (OpenPhish feed unavailable)")
+            op_ev = next(e for e in res_unavail["evidence"] if e["source"] == "OpenPhish Community Feed")
+            self.assertEqual(op_ev["status"], "not_checked")
+
+    def test_amazon_india_recruitment_spans_and_flags(self):
+        """Test Amazon India fixture: 4 flags, exact phrase spans, and unflagged text has no spans."""
+        from services.rule_engine import get_rule_analysis
+
+        fixture = (
+            "Amazon India\n"
+            "Work From Home 2026 Recruitment\n"
+            "@ Salary: Rs.50,000/month\n"
+            "@ Hours: 2-3 hours daily only\n"
+            "Processing Fee: Rs.599 (One Time)\n"
+            "Contact HR Priya: +91 99887 76655\n"
+            "WhatsApp Only No Calls Please"
+        )
+
+        res = get_rule_analysis(fixture)
+        matches = res["matches"]
+
+        # Exactly 4 flags listed
+        self.assertEqual(len(matches), 4)
+        matched_rules = {m["rule"]: m for m in matches}
+
+        expected_rules = {
+            "Unexpected payment request",
+            "Suspicious job offer",
+            "Suspicious communication channel",
+            "Upfront fee for a job",
+        }
+        self.assertEqual(set(matched_rules.keys()), expected_rules)
+
+        # Check matched_text and spans for each
+        # 1. Unexpected payment request
+        m_pay = matched_rules["Unexpected payment request"]
+        self.assertEqual(m_pay["matched_text"], "Processing Fee")
+        self.assertEqual(len(m_pay["spans"]), 1)
+        s = m_pay["spans"][0]
+        self.assertEqual(fixture[s["start"]:s["end"]], "Processing Fee")
+
+        # 2. Upfront fee for a job
+        m_fee = matched_rules["Upfront fee for a job"]
+        self.assertEqual(m_fee["matched_text"], "Processing Fee")
+        self.assertEqual(len(m_fee["spans"]), 1)
+        s = m_fee["spans"][0]
+        self.assertEqual(fixture[s["start"]:s["end"]], "Processing Fee")
+
+        # 3. Suspicious job offer
+        m_hours = matched_rules["Suspicious job offer"]
+        self.assertEqual(m_hours["matched_text"], "2-3 hours daily")
+        self.assertEqual(len(m_hours["spans"]), 1)
+        s = m_hours["spans"][0]
+        self.assertEqual(fixture[s["start"]:s["end"]], "2-3 hours daily")
+
+        # 4. Suspicious communication channel
+        m_wa = matched_rules["Suspicious communication channel"]
+        self.assertEqual(m_wa["matched_text"], "WhatsApp Only")
+        self.assertEqual(len(m_wa["spans"]), 1)
+        s = m_wa["spans"][0]
+        self.assertEqual(fixture[s["start"]:s["end"]], "WhatsApp Only")
+
+        # Verify every span lines up with fixture text
+        for m in matches:
+            for sp in m["spans"]:
+                self.assertEqual(fixture[sp["start"]:sp["end"]], m["matched_text"])
+
+        # Verify nothing without a flag is covered by spans
+        all_flagged_intervals = [
+            (sp["start"], sp["end"])
+            for m in matches
+            for sp in m["spans"]
+        ]
+        salary_idx = fixture.find("Rs.50,000/month")
+        priya_idx = fixture.find("HR Priya: +91 99887 76655")
+        no_calls_idx = fixture.find("No Calls Please")
+
+        for start, end in all_flagged_intervals:
+            self.assertFalse(start <= salary_idx < end, "Salary should not be inside any flag span")
+            self.assertFalse(start <= priya_idx < end, "Contact HR Priya should not be inside any flag span")
+            self.assertFalse(start <= no_calls_idx < end, "No Calls Please should not be inside any flag span")
+
+    def test_span_alignment_including_ocr_cleaning(self):
+        """Test that spans line up with text (text[start:end] == matched_text) after OCR cleaning."""
+        from services.rule_engine import get_rule_analysis
+        import re
+
+        raw_ocr = (
+            "Amazon India\r\n"
+            "Work From Home 2026 Recruitment\r\n\r\n"
+            "@ Salary: Rs.50,000/month\r\n"
+            "@ Hours:   2-3 hours daily only\r\n\r\n"
+            "Processing   Fee: Rs.599 (One Time)\r\n"
+            "WhatsApp Only   No Calls Please\x00\x07"
+        )
+        # Mimic useOCR cleanOCRText
+        cleaned = raw_ocr.replace('\r\n', '\n')
+        cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        cleaned = re.sub(r'[^\x20-\x7E\n₹@.]', '', cleaned).strip()
+
+        res = get_rule_analysis(cleaned)
+        self.assertGreater(len(res["matches"]), 0)
+        for m in res["matches"]:
+            if m["spans"]:
+                for sp in m["spans"]:
+                    sliced = cleaned[sp["start"]:sp["end"]]
+                    self.assertEqual(sliced, m["matched_text"])
+
+    def test_behavioral_flag_has_no_spans(self):
+        """Test that behavioral flags like multiple clustered roles appear in list but have spans = []."""
+        from services.rule_engine import get_rule_analysis
+
+        text = "Hiring immediately for Back Office / Data Entry / Receptionist. Apply today."
+        res = get_rule_analysis(text)
+        cluster_m = next((m for m in res["matches"] if m["rule"] == "Multiple clustered job roles in informal notice"), None)
+        self.assertIsNotNone(cluster_m)
+        self.assertEqual(cluster_m["spans"], [])
+        self.assertEqual(cluster_m["matched_text"], "")
+
+    def test_emoji_phrase_highlight_spans(self):
+        """Test that emojis (🔴, ✅, 📲, ₹) do not shift rule spans; text[start:end] == matched_text."""
+        from services.rule_engine import get_rule_analysis
+
+        text = (
+            "🔴 URGENT HIRING 🔴\n\n"
+            "Work From Home Opportunity!!\n"
+            "Earn ₹45,000 - ₹50,000 Per Week\n"
+            "✅ No Experience Required\n"
+            "✅ No Interview\n"
+            "✅ Immediate Joining\n"
+            "✅ Part Time / Full Time\n\n"
+            "Registration Fee: ₹499 only\n"
+            "(Refundable after 1st salary)\n\n"
+            "Contact HR: +91 98765 4321 0\n"
+            "WhatsApp Only 📲\n\n"
+            "⚠️ Limited Seats Available\n"
+            "Apply Before 6PM Today!!"
+        )
+        res = get_rule_analysis(text)
+        self.assertGreaterEqual(len(res["matches"]), 4)
+
+        matched_phrases = set()
+        for m in res["matches"]:
+            for sp in m["spans"]:
+                sliced = text[sp["start"]:sp["end"]]
+                self.assertEqual(sliced, m["matched_text"])
+                self.assertGreater(sp["end"], sp["start"])
+                matched_phrases.add(sliced)
+
+        self.assertIn("URGENT", matched_phrases)
+        self.assertIn("No Experience Required", matched_phrases)
+        self.assertIn("Registration Fee", matched_phrases)
+        self.assertIn("WhatsApp Only", matched_phrases)
+
+    def test_multi_code_point_emoji_sequence_spans(self):
+        """Test that multi-code-point emoji sequences (e.g. 👨👩👧, 👨‍👩‍👧) align exact spans."""
+        from services.rule_engine import get_rule_analysis
+
+        text = (
+            "👨👩👧 URGENT HIRING 👨‍👩‍👧\n"
+            "Registration Fee: ₹499 only\n"
+            "WhatsApp Only 📲"
+        )
+        res = get_rule_analysis(text)
+        for m in res["matches"]:
+            for sp in m["spans"]:
+                sliced = text[sp["start"]:sp["end"]]
+                self.assertEqual(sliced, m["matched_text"])
+
+    def test_crlf_normalization_in_analyze_endpoint(self):
+        """Test that /analyze normalizes CRLF and returns identical matched text and spans."""
+        payload_text = (
+            "🔴 URGENT HIRING 🔴\r\n"
+            "Work From Home Opportunity!!\r\n"
+            "Earn ₹45,000 - ₹50,000 Per Week\r\n"
+            "✅ No Experience Required\r\n"
+            "Registration Fee: ₹499 only\r\n"
+            "WhatsApp Only 📲"
+        )
+        resp = self.app.post("/analyze", json={"text": payload_text, "url": ""})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+
+        returned_text = data["jobText"]
+        self.assertNotIn("\r", returned_text)
+
+        matches = data["matches"]
+        self.assertGreaterEqual(len(matches), 4)
+        for m in matches:
+            for sp in m["spans"]:
+                sliced = returned_text[sp["start"]:sp["end"]]
+                self.assertEqual(sliced, m["matched_text"])
+
+
 
 
 if __name__ == '__main__':

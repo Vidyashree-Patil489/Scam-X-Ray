@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const FONT = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -42,9 +43,10 @@ function getRiskLevel(score) {
 }
 
 function getRiskColor(level) {
-  if (level === 'LOW') return COLORS.green;
-  if (level === 'MEDIUM') return COLORS.amber;
-  if (level === 'UNVERIFIED') return COLORS.slate;
+  if (level === 'LOW' || level === 'NO THREAT FOUND') return COLORS.green;
+  if (level === 'MEDIUM' || level === 'SUSPICIOUS') return COLORS.amber;
+  if (level === 'UNVERIFIED' || level === 'UNKNOWN') return COLORS.slate;
+  if (level === 'MALICIOUS') return COLORS.red;
   return COLORS.red;
 }
 
@@ -56,11 +58,13 @@ function formatLabel(value) {
 
 function getFlagText(flag) {
   if (typeof flag === 'string') return flag;
+  if (flag?.text) return flag.text;
+  if (flag?.rule && flag?.matched_text) return `${flag.rule}: matched '${flag.matched_text}'`;
   return (
-    flag?.text ||
     flag?.message ||
     flag?.description ||
     flag?.name ||
+    flag?.rule ||
     'Potential threat indicator'
   );
 }
@@ -406,59 +410,245 @@ function RiskRadar({ axes = [] }) {
   );
 }
 
-function HighlightedText({ text }) {
-  const suspiciousPattern =
-    /(within 24 hours|urgent|limited seats|limited slots|registration fee|security deposit|refundable server activation deposit|pay ₹?\s?\d+|₹\s?[\d,]+(?:\.\d+)?(?:\s?to\s?₹?\s?[\d,]+)?|whatsapp only|telegram only|no experience needed|no prior experience|guaranteed|password|otp|click here|verify your account|telegram|gmail\.com|earn ₹?\s?[\d,]+(?:\s?to\s?₹?\s?[\d,]+)?(?:\/month)?|2 hours daily|contact hr manager|activate your id|registration closes|online job portal|job portal|interview scheduled for tomorrow|interview tomorrow|send your cv|share your cv|whatsapp your cv|address will be shared|address will be provided|share cv for address|walk-in tomorrow)/gi;
+export function HighlightedText({ text, flags, matches }) {
+  const [activeHighlight, setActiveHighlight] = useState(null);
 
-  const parts = String(text ?? '').split(suspiciousPattern);
-
-  function isSuspicious(part) {
-    return new RegExp(suspiciousPattern.source, 'i').test(part);
+  const textStr = String(text ?? '');
+  if (!textStr.trim()) {
+    return null;
   }
 
-  function isHighRisk(part) {
-    return /urgent|security deposit|refundable|registration fee|pay ₹|otp|password|verify your account|telegram|gmail\.com|activate your id|address will be shared|share cv for address/i.test(
-      part
+  // Split text into Unicode code points so character indices match Python backend
+  const chars = Array.from(textStr);
+  const textLen = chars.length;
+  if (textLen === 0) {
+    return null;
+  }
+
+  // 1. Collect all flag items from matches or flags
+  const flagList = Array.isArray(matches) && matches.length > 0
+    ? matches
+    : Array.isArray(flags)
+      ? flags
+      : [];
+
+  // 2. Extract valid span entries
+  const rawSpans = [];
+  for (const flag of flagList) {
+    if (!flag || typeof flag !== 'object' || !Array.isArray(flag.spans) || flag.spans.length === 0) {
+      continue;
+    }
+
+    const flagName = flag.rule || flag.name || flag.label || getFlagText(flag);
+    const isHigh =
+      flag.severity === 'CRITICAL' ||
+      flag.severity === 'HIGH' ||
+      flag.severity_label === 'HIGH' ||
+      (typeof flag.severity === 'number' && flag.severity >= 20);
+
+    for (const span of flag.spans) {
+      if (
+        span &&
+        typeof span.start === 'number' &&
+        typeof span.end === 'number' &&
+        Number.isInteger(span.start) &&
+        Number.isInteger(span.end) &&
+        span.start >= 0 &&
+        span.start < textLen &&
+        span.end > span.start &&
+        span.end <= textLen
+      ) {
+        const sliceText = chars.slice(span.start, span.end).join('');
+        // Skip zero-length or empty spans
+        if (!sliceText) {
+          continue;
+        }
+        rawSpans.push({
+          start: span.start,
+          end: span.end,
+          flagNames: [flagName],
+          isHighRisk: isHigh,
+        });
+      }
+    }
+  }
+
+  // 3. Merge overlapping or contiguous spans
+  // Several flags hitting the same or overlapping span are merged into one highlight.
+  // Colour follows highest severity (red for high risk, orange for cautionary).
+  const mergedSpans = [];
+  if (rawSpans.length > 0) {
+    const sorted = [...rawSpans].sort((a, b) => a.start - b.start || b.end - a.end);
+
+    for (const span of sorted) {
+      if (mergedSpans.length === 0) {
+        mergedSpans.push({
+          start: span.start,
+          end: span.end,
+          flagNames: [...span.flagNames],
+          isHighRisk: span.isHighRisk,
+        });
+        continue;
+      }
+
+      const prev = mergedSpans[mergedSpans.length - 1];
+      if (span.start <= prev.end) {
+        // Overlapping or touching: merge!
+        prev.end = Math.max(prev.end, span.end);
+        if (span.isHighRisk) {
+          prev.isHighRisk = true;
+        }
+        for (const name of span.flagNames) {
+          if (name && !prev.flagNames.includes(name)) {
+            prev.flagNames.push(name);
+          }
+        }
+      } else {
+        mergedSpans.push({
+          start: span.start,
+          end: span.end,
+          flagNames: [...span.flagNames],
+          isHighRisk: span.isHighRisk,
+        });
+      }
+    }
+  }
+
+  // 4. Build text slices (unhighlighted and highlighted)
+  const segments = [];
+  let cursor = 0;
+
+  for (let i = 0; i < mergedSpans.length; i++) {
+    const span = mergedSpans[i];
+    // Safeguard: skip zero-length or out-of-range spans
+    if (span.start < cursor || span.start >= textLen || span.end <= span.start || span.end > textLen) {
+      continue;
+    }
+
+    if (span.start > cursor) {
+      const unhighlighted = chars.slice(cursor, span.start).join('');
+      if (unhighlighted) {
+        segments.push(
+          <span key={`text-${cursor}`}>
+            {unhighlighted}
+          </span>
+        );
+      }
+    }
+
+    const matchedSlice = chars.slice(span.start, span.end).join('');
+    if (!matchedSlice) {
+      cursor = Math.max(cursor, span.end);
+      continue;
+    }
+
+    const tooltipText = span.flagNames.join(' • ');
+    const isSelected = activeHighlight === i;
+
+    segments.push(
+      <mark
+        key={`mark-${span.start}-${span.end}`}
+        title={tooltipText}
+        aria-label={tooltipText}
+        tabIndex={0}
+        onClick={() => setActiveHighlight(isSelected ? null : i)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setActiveHighlight(isSelected ? null : i);
+          }
+        }}
+        style={{
+          background: span.isHighRisk ? '#fee2e2' : '#ffedd5',
+          color: span.isHighRisk ? '#dc2626' : '#c2410c',
+          borderRadius: 4,
+          padding: '2px 5px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          outline: isSelected ? `2px solid ${span.isHighRisk ? '#dc2626' : '#ea580c'}` : 'none',
+          outlineOffset: '1px',
+          transition: 'outline 0.15s ease',
+        }}
+      >
+        {matchedSlice}
+      </mark>
     );
+
+    cursor = span.end;
   }
+
+  if (cursor < textLen) {
+    const remaining = chars.slice(cursor).join('');
+    if (remaining) {
+      segments.push(
+        <span key={`text-${cursor}`}>
+          {remaining}
+        </span>
+      );
+    }
+  }
+
+  const selectedSpan = activeHighlight !== null ? mergedSpans[activeHighlight] : null;
 
   return (
-    <div
-      style={{
-        padding: '18px 20px',
-        background: '#f8fafc',
-        border: '1px solid #e2e8f0',
-        borderRadius: 12,
-        color: '#334155',
-        fontSize: 13.5,
-        lineHeight: 1.85,
-        overflowWrap: 'anywhere',
-        whiteSpace: 'pre-wrap',
-        fontFamily: FONT,
-      }}
-    >
-      {parts.map((part, index) => {
-        if (!isSuspicious(part)) {
-          return <span key={index}>{part}</span>;
-        }
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div
+        style={{
+          padding: '18px 20px',
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: 12,
+          color: '#334155',
+          fontSize: 13.5,
+          lineHeight: 1.85,
+          overflowWrap: 'anywhere',
+          whiteSpace: 'pre-wrap',
+          fontFamily: FONT,
+        }}
+      >
+        {segments}
+      </div>
 
-        const highRisk = isHighRisk(part);
-
-        return (
-          <mark
-            key={index}
+      {selectedSpan && (
+        <div
+          style={{
+            padding: '9px 14px',
+            borderRadius: 8,
+            background: selectedSpan.isHighRisk ? '#fff1f2' : '#fffbeb',
+            border: `1px solid ${selectedSpan.isHighRisk ? '#fecdd3' : '#fed7aa'}`,
+            fontSize: 12,
+            color: selectedSpan.isHighRisk ? '#991b1b' : '#92400e',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            lineHeight: 1.5,
+          }}
+        >
+          <span>
+            <strong>{selectedSpan.isHighRisk ? '🔴 High Risk Phrase:' : '🟠 Cautionary Cue:'}</strong>{' '}
+            "{chars.slice(selectedSpan.start, selectedSpan.end).join('')}" — Triggered by:{' '}
+            <strong>{selectedSpan.flagNames.join(', ')}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setActiveHighlight(null)}
             style={{
-              background: highRisk ? '#fee2e2' : '#ffedd5',
-              color: highRisk ? '#dc2626' : '#c2410c',
-              borderRadius: 4,
-              padding: '2px 5px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 14,
+              color: 'inherit',
               fontWeight: 700,
+              padding: '0 4px',
+              lineHeight: 1,
             }}
+            aria-label="Dismiss details"
           >
-            {part}
-          </mark>
-        );
-      })}
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -605,13 +795,15 @@ export default function Results() {
   // The 'UNVERIFIED' status and 'Domain Not Verified' banner apply ONLY to URL scans whose backend verdict is Unverified.
   const riskScore = normalizeScore(result.risk_score ?? result.score) ?? 0;
   const urlScore = normalizeScore(result.url_score);
-  const isUnverifiedVerdict = isUrlScan && result.url_verdict === 'Unverified';
+  const isUnverifiedVerdict = isUrlScan && (result.url_verdict === 'Unverified' || result.url_verdict === 'Unknown' || result.verdict === 'Unknown' || result.verdict === 'Unverified');
   const hasCautionIndicators = isUrlScan && (
-    (Array.isArray(result.indicators) && result.indicators.length > 0) ||
+    (Array.isArray(result.indicators) && result.indicators.some((i) => typeof i === 'object' ? i.severity !== 'info' : true)) ||
     (urlScore !== null && urlScore > 0)
   );
   const unverifiedNotScored = isUnverifiedVerdict && !hasCautionIndicators;
-  const rawRiskLevel = isUnverifiedVerdict ? 'UNVERIFIED' : getRiskLevel(riskScore);
+  const rawRiskLevel = isUnverifiedVerdict
+    ? (result.risk_level === 'Unknown' || result.url_verdict === 'Unknown' ? 'UNKNOWN' : 'UNVERIFIED')
+    : getRiskLevel(riskScore);
   const riskLevel = rawRiskLevel;
   const riskColor = getRiskColor(riskLevel);
 
@@ -622,10 +814,15 @@ export default function Results() {
   // 3. Flags and Indicators
   const flags = isUrlScan && Array.isArray(result.indicators) && result.indicators.length > 0
     ? result.indicators
-    : [
-        ...(Array.isArray(result.rule_flags) ? result.rule_flags : []),
-        ...(Array.isArray(result.url_flags) ? result.url_flags : []),
-      ];
+    : Array.isArray(result.matches) && result.matches.length > 0
+      ? [
+          ...result.matches,
+          ...(Array.isArray(result.url_flags) ? result.url_flags : []),
+        ]
+      : [
+          ...(Array.isArray(result.rule_flags) ? result.rule_flags : []),
+          ...(Array.isArray(result.url_flags) ? result.url_flags : []),
+        ];
 
   const categories = Array.isArray(result.categories)
     ? result.categories
@@ -646,7 +843,7 @@ export default function Results() {
     'Automated analysis completed. Review the detected indicators and verify the source independently.';
 
   // 4. Scam Category & Classification Criteria
-  const scamCategory = result.scam_category || (isUnverifiedVerdict ? 'Unverified URL' : riskScore > 30 ? 'Suspicious Communication' : 'Unclassified');
+  const scamCategory = result.scam_category || (isUnverifiedVerdict ? 'Unknown URL' : riskScore > 30 ? 'Suspicious Communication' : 'Unclassified');
   const classificationCriteria = Array.isArray(result.classification_criteria) && result.classification_criteria.length > 0
     ? result.classification_criteria
     : flags.length > 0
@@ -654,18 +851,20 @@ export default function Results() {
       : ['No explicit high-risk scam patterns matched'];
 
   // 5. URL Dedicated Verdict & Reason (Applicable only to URL scans)
-  const urlVerdict = isUrlScan ? (result.url_verdict || (
+  const urlVerdict = isUrlScan ? (result.url_verdict || result.verdict || (
     urlScore >= 35
-      ? 'Suspicious / Potentially Fraudulent'
-      : 'Unverified'
+      ? 'Suspicious'
+      : 'Unknown'
   )) : null;
 
-  const urlVerdictReason = isUrlScan ? (result.url_verdict_reason || (
-    urlVerdict === 'Likely Legitimate'
-      ? 'The domain passed positive verification checks: valid TLS, established domain age, and active reachability.'
-      : urlVerdict === 'Suspicious / Potentially Fraudulent'
-        ? 'The URL exhibits high-risk structural characteristics commonly associated with malicious links.'
-        : 'No threat indicators detected in URL syntax, but positive verification evidence is incomplete. Domain remains unverified.'
+  const urlVerdictReason = isUrlScan ? (result.url_verdict_reason || result.verdict_reason || (
+    urlVerdict === 'Malicious'
+      ? 'Active threat intelligence match: known phishing or malicious link detected in reputation database.'
+      : (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate')
+        ? 'The domain completed infrastructure evaluations: valid matching TLS certificate, established domain age, active HTTP reachability, and zero threat indicators identified.'
+        : (urlVerdict === 'Suspicious' || urlVerdict === 'Suspicious / Potentially Fraudulent')
+          ? 'The URL exhibits high-risk structural characteristics commonly associated with malicious links.'
+          : 'Zero threat indicators detected in URL syntax, but positive evaluation evidence is incomplete.'
   )) : null;
 
   const verificationChecksList = Array.isArray(result.verification_checks) ? result.verification_checks : [];
@@ -734,8 +933,15 @@ export default function Results() {
   let bannerColor;
 
   if (isUrlScan) {
-    if (urlVerdict === 'Suspicious / Potentially Fraudulent') {
-      bannerTitle = 'Suspicious / Potentially Fraudulent';
+    if (urlVerdict === 'Malicious') {
+      bannerTitle = 'Malicious Link Detected';
+      bannerSubtitle = 'Active threat intelligence match: known phishing or malicious link detected in reputation database. Do not open or enter any information.';
+      bannerBg = 'linear-gradient(110deg, #fff1f2 0%, #fff7f7 100%)';
+      bannerBorder = `1px solid ${COLORS.red}50`;
+      bannerBadgeLevel = 'MALICIOUS';
+      bannerColor = COLORS.red;
+    } else if (urlVerdict === 'Suspicious' || urlVerdict === 'Suspicious / Potentially Fraudulent') {
+      bannerTitle = urlVerdict;
       const effScore = urlScore ?? riskScore ?? 0;
       if (effScore >= 70) {
         bannerSubtitle = 'Structural deception indicators were detected in the URL syntax. Do not enter credentials, financial information, or personal data.';
@@ -750,16 +956,18 @@ export default function Results() {
         bannerBadgeLevel = 'SUSPICIOUS';
         bannerColor = COLORS.amber;
       }
-    } else if (urlVerdict === 'Likely Legitimate') {
-      bannerTitle = 'Likely Legitimate';
-      bannerSubtitle = 'Likely legitimate - basic checks passed; this is not a guarantee of safety.';
+    } else if (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate') {
+      bannerTitle = urlVerdict === 'No threat found' ? 'No Threat Found' : urlVerdict;
+      bannerSubtitle = urlVerdict === 'No threat found'
+        ? 'Technical verification checks completed with zero threat indicators identified. Basic checks passed; this does not constitute an absolute security guarantee.'
+        : 'Likely legitimate - basic checks passed; this is not a guarantee of safety.';
       bannerBg = 'linear-gradient(110deg, #f0fdf4 0%, #f7fff9 100%)';
       bannerBorder = `1px solid ${COLORS.green}50`;
-      bannerBadgeLevel = 'LOW';
+      bannerBadgeLevel = urlVerdict === 'No threat found' ? 'NO THREAT FOUND' : 'LOW';
       bannerColor = COLORS.green;
     } else {
-      // Unverified
-      bannerTitle = 'Domain Not Verified';
+      // Unknown / Unverified
+      bannerTitle = urlVerdict === 'Unknown' ? 'Status Unknown' : 'Domain Not Verified';
       const indicatorCount = Array.isArray(result.indicators) ? result.indicators.length : 0;
       if (indicatorCount > 0 || (urlScore !== null && urlScore > 0)) {
         bannerSubtitle = `${indicatorCount} caution indicator${indicatorCount === 1 ? '' : 's'} found — not verified. Absence of confirmed fraud does not verify safety.`;
@@ -768,7 +976,7 @@ export default function Results() {
       }
       bannerBg = 'linear-gradient(110deg, #f8fafc 0%, #f1f5f9 100%)';
       bannerBorder = '1px solid #cbd5e1';
-      bannerBadgeLevel = 'UNVERIFIED';
+      bannerBadgeLevel = urlVerdict === 'Unknown' ? 'UNKNOWN' : 'UNVERIFIED';
       bannerColor = COLORS.slate;
     }
   } else {
@@ -972,17 +1180,21 @@ export default function Results() {
           style={{
             padding: '18px 22px',
             background:
-              urlVerdict === 'Likely Legitimate'
+              (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate')
                 ? COLORS.greenBg
-                : urlVerdict === 'Suspicious / Potentially Fraudulent'
+                : (urlVerdict === 'Malicious' || (urlVerdict?.includes('Suspicious') && (urlScore >= 70 || riskScore >= 70)))
                   ? COLORS.redBg
-                  : COLORS.slateBg,
+                  : urlVerdict?.includes('Suspicious')
+                    ? COLORS.amberBg
+                    : COLORS.slateBg,
             border: `1px solid ${
-              urlVerdict === 'Likely Legitimate'
+              (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate')
                 ? COLORS.greenBorder
-                : urlVerdict === 'Suspicious / Potentially Fraudulent'
+                : (urlVerdict === 'Malicious' || (urlVerdict?.includes('Suspicious') && (urlScore >= 70 || riskScore >= 70)))
                   ? COLORS.redBorder
-                  : COLORS.slateBorder
+                  : urlVerdict?.includes('Suspicious')
+                    ? COLORS.amberBorder
+                    : COLORS.slateBorder
             }`,
             borderRadius: 14,
             display: 'flex',
@@ -998,14 +1210,16 @@ export default function Results() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 color:
-                  urlVerdict === 'Likely Legitimate'
+                  (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate')
                     ? COLORS.green
-                    : urlVerdict === 'Suspicious / Potentially Fraudulent'
+                    : (urlVerdict === 'Malicious' || (urlVerdict?.includes('Suspicious') && (urlScore >= 70 || riskScore >= 70)))
                       ? COLORS.red
-                      : COLORS.slate,
+                      : urlVerdict?.includes('Suspicious')
+                        ? COLORS.amber
+                        : COLORS.slate,
               }}
             >
-              Is this URL legitimate, suspicious, or unverified?
+              URL Threat Intelligence Verdict
             </span>
             <span
               style={{
@@ -1016,17 +1230,21 @@ export default function Results() {
                 fontFamily: HEADING_FONT,
                 background: '#ffffff',
                 color:
-                  urlVerdict === 'Likely Legitimate'
+                  (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate')
                     ? COLORS.green
-                    : urlVerdict === 'Suspicious / Potentially Fraudulent'
+                    : (urlVerdict === 'Malicious' || (urlVerdict?.includes('Suspicious') && (urlScore >= 70 || riskScore >= 70)))
                       ? COLORS.red
-                      : COLORS.slate,
+                      : urlVerdict?.includes('Suspicious')
+                        ? COLORS.amber
+                        : COLORS.slate,
                 border: `1px solid ${
-                  urlVerdict === 'Likely Legitimate'
+                  (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate')
                     ? COLORS.greenBorder
-                    : urlVerdict === 'Suspicious / Potentially Fraudulent'
+                    : (urlVerdict === 'Malicious' || (urlVerdict?.includes('Suspicious') && (urlScore >= 70 || riskScore >= 70)))
                       ? COLORS.redBorder
-                      : COLORS.slateBorder
+                      : urlVerdict?.includes('Suspicious')
+                        ? COLORS.amberBorder
+                        : COLORS.slateBorder
                 }`,
               }}
             >
@@ -1054,7 +1272,7 @@ export default function Results() {
               lineHeight: 1.5,
             }}
           >
-            ℹ️ <strong>Evidence & Verification Scope:</strong> Threat risk is computed strictly from structural indicators. Verification status evaluates DNS resolution, TLS certificates, RDAP domain age, and safe HTTP reachability with SSRF protections.
+            ℹ️ <strong>Evidence &amp; Verification Scope:</strong> Verdict is based on reputation lookups and URL structure. Verification checks are shown separately and never raise the threat level.
           </p>
         </div>
       )}
@@ -1134,63 +1352,6 @@ export default function Results() {
           ))}
         </div>
 
-        {/* Separate Labeled Block: Verification Status (Checks Performed / Failed / Not Performed) */}
-        {isUrlScan && hasUrl && verificationChecksList.length > 0 && (
-          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-            <h3 style={{ fontSize: 13.5, fontWeight: 800, fontFamily: HEADING_FONT, margin: '0 0 10px', color: COLORS.text }}>
-              🛡️ URL Verification Status (Independent Security Checks)
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-              {verificationChecksList.map((check, i) => {
-                const isPerf = check.status === 'performed';
-                const isFail = check.status === 'failed';
-                const statusColor = isPerf ? COLORS.green : isFail ? COLORS.amber : COLORS.slate;
-                const statusBg = isPerf ? COLORS.greenBg : isFail ? COLORS.amberBg : '#f1f5f9';
-                const statusBorder = isPerf ? COLORS.greenBorder : isFail ? COLORS.amberBorder : '#cbd5e1';
-
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 10,
-                      background: '#ffffff',
-                      border: `1px solid ${COLORS.border}`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: 6,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <strong style={{ fontSize: 12, color: COLORS.text, fontFamily: HEADING_FONT }}>
-                        {check.name}
-                      </strong>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          padding: '2px 7px',
-                          borderRadius: 8,
-                          background: statusBg,
-                          color: statusColor,
-                          border: `1px solid ${statusBorder}`,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {check.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: 11.5, color: COLORS.muted, lineHeight: 1.5 }}>
-                      {check.details}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {categories.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px dashed #e2e8f0' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.muted }}>Rule Categories Triggered:</span>
@@ -1212,6 +1373,430 @@ export default function Results() {
           </div>
         )}
       </Panel>
+
+      {/* ─────────────────────────────────────────────────────────────
+          3.5 DEDICATED URL VERIFICATION STATUS SECTION
+      ───────────────────────────────────────────────────────────── */}
+      {isUrlScan && hasUrl && (
+        <Panel title="🛡️ URL Verification Status">
+          {(() => {
+            const activeChecks = verificationChecksList.filter(
+              (c) => c.status === 'performed' || c.status === 'failed'
+            );
+            return (
+              <>
+                {activeChecks.length > 0 ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: 10,
+                    }}
+                  >
+                    {activeChecks.map((check, i) => {
+                      const isPerf = check.status === 'performed';
+                      const statusColor = isPerf ? COLORS.green : COLORS.amber;
+                      const statusBg = isPerf ? COLORS.greenBg : COLORS.amberBg;
+                      const statusBorder = isPerf ? COLORS.greenBorder : COLORS.amberBorder;
+
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 10,
+                            background: '#ffffff',
+                            border: `1px solid ${COLORS.border}`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            gap: 6,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                            }}
+                          >
+                            <strong
+                              style={{
+                                fontSize: 12,
+                                color: COLORS.text,
+                                fontFamily: HEADING_FONT,
+                              }}
+                            >
+                              {check.check || check.name}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                padding: '2px 7px',
+                                borderRadius: 8,
+                                background: statusBg,
+                                color: statusColor,
+                                border: `1px solid ${statusBorder}`,
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              {check.status}
+                            </span>
+                          </div>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 11.5,
+                              color: COLORS.muted,
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {(check.details || '').replace(/\s*\((?:in_memory|disk_cache|stub)\)/gi, '').trim()}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ color: COLORS.muted, fontSize: 13, margin: 0, lineHeight: 1.7 }}>
+                    No infrastructure checks could be performed for this domain or host.
+                  </p>
+                )}
+
+                {(() => {
+                  // Exactly three rows:
+                  // 1. OpenPhish Community Feed
+                  // 2. Structural Threat Indicators
+                  // 3. Infrastructure Evaluations
+
+                  // Row 1: OpenPhish Community Feed
+                  const openPhishEv = Array.isArray(result.evidence)
+                    ? result.evidence.find((ev) => ev && ev.source?.includes('OpenPhish'))
+                    : null;
+                  const opStatus = openPhishEv?.status || 'not_checked';
+
+                  let opBadgeText = 'Not checked';
+                  let opBadgeBg = '#f1f5f9';
+                  let opBadgeColor = '#475569';
+                  let opBadgeBorder = '#cbd5e1';
+
+                  if (opStatus === 'match') {
+                    opBadgeText = 'Match found';
+                    opBadgeBg = '#fee2e2';
+                    opBadgeColor = '#dc2626';
+                    opBadgeBorder = '#fecaca';
+                  } else if (opStatus === 'no_match') {
+                    opBadgeText = 'No match';
+                    opBadgeBg = '#f1f5f9';
+                    opBadgeColor = '#475569';
+                    opBadgeBorder = '#cbd5e1';
+                  }
+
+                  let opDetail = 'Feed lookup not performed.';
+                  if (opStatus === 'no_match') {
+                    opDetail = 'Not listed in the OpenPhish community feed.';
+                  } else if (openPhishEv?.result) {
+                    opDetail = openPhishEv.result
+                      .replace(/\s*\((?:in_memory|disk_cache|stub)\)/gi, '')
+                      .trim();
+                  }
+
+                  // Row 2: Structural Threat Indicators
+                  const rawIndicators = Array.isArray(result.indicators) ? result.indicators : [];
+                  const threatIndicators = rawIndicators.filter((i) =>
+                    typeof i === 'object' && i.severity ? i.severity !== 'info' : true
+                  );
+
+                  let indBadgeText = 'None found';
+                  let indBadgeBg = '#f1f5f9';
+                  let indBadgeColor = '#475569';
+                  let indBadgeBorder = '#cbd5e1';
+                  let indDetail = 'Zero heuristic or structural threat indicators detected.';
+
+                  if (threatIndicators.length > 0) {
+                    const hasHighRisk = threatIndicators.some(
+                      (i) => i.severity === 'critical' || i.severity === 'high'
+                    );
+                    indBadgeText = `${threatIndicators.length} found`;
+                    indBadgeBg = hasHighRisk ? '#fee2e2' : '#fef3c7';
+                    indBadgeColor = hasHighRisk ? '#dc2626' : '#d97706';
+                    indBadgeBorder = hasHighRisk ? '#fecaca' : '#fde68a';
+                    indDetail = threatIndicators
+                      .map((i) => (typeof i === 'object' ? i.description || i.name || i.id : String(i)))
+                      .join(', ');
+                  }
+
+                  // Row 3: Infrastructure Evaluations
+                  const checks = Array.isArray(result.verification_checks)
+                    ? result.verification_checks
+                    : [];
+                  const performedOrFailedChecks = checks.filter(
+                    (c) => c && (c.status === 'performed' || c.status === 'failed')
+                  );
+
+                  let infraBadgeText = 'Passed';
+                  let infraBadgeBg = '#f1f5f9';
+                  let infraBadgeColor = '#475569';
+                  let infraBadgeBorder = '#cbd5e1';
+
+                  if (performedOrFailedChecks.length === 0) {
+                    const isBlocked = checks.some((c) =>
+                      c.details?.toLowerCase().includes('blocked')
+                    );
+                    infraBadgeText = isBlocked ? 'Blocked' : 'Not run';
+                    infraBadgeBg = isBlocked ? '#fef3c7' : '#f1f5f9';
+                    infraBadgeColor = isBlocked ? '#d97706' : '#475569';
+                    infraBadgeBorder = isBlocked ? '#fde68a' : '#cbd5e1';
+                  } else {
+                    const anyFailed = performedOrFailedChecks.some((c) => c.status === 'failed');
+                    if (anyFailed) {
+                      infraBadgeText = 'Failed';
+                      infraBadgeBg = '#fef3c7';
+                      infraBadgeColor = '#d97706';
+                      infraBadgeBorder = '#fde68a';
+                    }
+                  }
+
+                  const rowCardStyle = {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    background: '#f8fafc',
+                    border: '1px solid #edf2f7',
+                  };
+
+                  const headerStyle = {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                  };
+
+                  const getBadgeStyle = (bg, color, border) => ({
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    background: bg,
+                    color: color,
+                    border: `1px solid ${border}`,
+                    letterSpacing: '0.02em',
+                  });
+
+                  return (
+                    <div
+                      style={{
+                        marginTop: 14,
+                        paddingTop: 12,
+                        borderTop: '1px solid #e2e8f0',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <strong
+                        style={{
+                          fontSize: 12,
+                          color: COLORS.text,
+                          fontFamily: HEADING_FONT,
+                          textAlign: 'left',
+                        }}
+                      >
+                        🔎 Intelligence Sources &amp; Evidence
+                      </strong>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        {/* 1. OpenPhish Community Feed */}
+                        <div style={rowCardStyle}>
+                          <div style={headerStyle}>
+                            <strong
+                              style={{
+                                fontSize: 12,
+                                color: COLORS.text,
+                                fontFamily: HEADING_FONT,
+                                textAlign: 'left',
+                              }}
+                            >
+                              OpenPhish Community Feed
+                            </strong>
+                            <span style={getBadgeStyle(opBadgeBg, opBadgeColor, opBadgeBorder)}>
+                              {opBadgeText}
+                            </span>
+                          </div>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 11.5,
+                              color: COLORS.muted,
+                              lineHeight: 1.5,
+                              textAlign: 'left',
+                            }}
+                          >
+                            {opDetail}
+                          </p>
+                        </div>
+
+                        {/* 2. Structural Threat Indicators */}
+                        <div style={rowCardStyle}>
+                          <div style={headerStyle}>
+                            <strong
+                              style={{
+                                fontSize: 12,
+                                color: COLORS.text,
+                                fontFamily: HEADING_FONT,
+                                textAlign: 'left',
+                              }}
+                            >
+                              Structural Threat Indicators
+                            </strong>
+                            <span style={getBadgeStyle(indBadgeBg, indBadgeColor, indBadgeBorder)}>
+                              {indBadgeText}
+                            </span>
+                          </div>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 11.5,
+                              color: COLORS.muted,
+                              lineHeight: 1.5,
+                              textAlign: 'left',
+                            }}
+                          >
+                            {indDetail}
+                          </p>
+                        </div>
+
+                        {/* 3. Infrastructure Evaluations */}
+                        <div style={rowCardStyle}>
+                          <div style={headerStyle}>
+                            <strong
+                              style={{
+                                fontSize: 12,
+                                color: COLORS.text,
+                                fontFamily: HEADING_FONT,
+                                textAlign: 'left',
+                              }}
+                            >
+                              Infrastructure Evaluations
+                            </strong>
+                            <span
+                              style={getBadgeStyle(
+                                infraBadgeBg,
+                                infraBadgeColor,
+                                infraBadgeBorder
+                              )}
+                            >
+                              {infraBadgeText}
+                            </span>
+                          </div>
+                          {performedOrFailedChecks.length === 0 ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 11.5,
+                                color: COLORS.muted,
+                                lineHeight: 1.5,
+                                textAlign: 'left',
+                              }}
+                            >
+                              No network checks were run.
+                            </p>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 3,
+                              }}
+                            >
+                              {performedOrFailedChecks.map((check, idx) => {
+                                const isPerf = check.status === 'performed';
+                                const statusWord = isPerf
+                                  ? 'Passed'
+                                  : check.details?.toLowerCase().includes('blocked')
+                                  ? 'Blocked'
+                                  : 'Failed';
+                                const cleanDetail = (check.details || '')
+                                  .replace(/\s*\((?:in_memory|disk_cache|stub)\)/gi, '')
+                                  .trim();
+                                return (
+                                  <div
+                                    key={idx}
+                                    style={{
+                                      fontSize: 11.5,
+                                      color: COLORS.text,
+                                      lineHeight: 1.5,
+                                      textAlign: 'left',
+                                    }}
+                                  >
+                                    <span>
+                                      {`${check.name || check.check} — ${statusWord} — ${cleanDetail}`}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p
+                        style={{
+                          margin: '4px 0 0',
+                          fontSize: 11,
+                          color: COLORS.muted,
+                          lineHeight: 1.5,
+                          textAlign: 'left',
+                        }}
+                      >
+                        Verdict is based on reputation lookups and URL structure. Verification checks are shown separately and never raise the threat level.
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {Array.isArray(result.limitations) && result.limitations.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 14,
+                      padding: '12px 14px',
+                      borderRadius: 10,
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                    }}
+                  >
+                    <strong style={{ fontSize: 12, color: COLORS.text, fontFamily: HEADING_FONT }}>
+                      ⚠️ Analysis Limitations:
+                    </strong>
+                    <ul
+                      style={{
+                        margin: '6px 0 0',
+                        paddingLeft: 18,
+                        color: COLORS.muted,
+                        fontSize: 12,
+                        lineHeight: 1.65,
+                      }}
+                    >
+                      {result.limitations.map((lim, idx) => (
+                        <li key={idx}>{lim}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </Panel>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
           4. LAYER SCORES COMPARISON (Hidden if < 2 layers with real values; rows that are N/A are omitted)
@@ -1309,7 +1894,9 @@ export default function Results() {
         {flags.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {flags.map((flag, index) => {
-              const rawSeverity = typeof flag === 'object' ? String(flag.severity || 'HIGH').toUpperCase() : 'HIGH';
+              const rawSeverity = typeof flag === 'object'
+                ? String(flag.severity_label || (typeof flag.severity === 'number' ? (flag.severity >= 20 ? 'HIGH' : 'MEDIUM') : flag.severity) || 'HIGH').toUpperCase()
+                : 'HIGH';
               const validSeverities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'UNVERIFIED'];
               const severity = validSeverities.includes(rawSeverity) ? rawSeverity : 'HIGH';
               const details = typeof flag === 'object' ? flag.explanation || flag.details || flag.reason || '' : '';
@@ -1407,7 +1994,16 @@ export default function Results() {
           </ul>
         ) : isUrlScan ? (
           <ul style={{ paddingLeft: 22, margin: 0, color: '#334155' }}>
-            {isUnverifiedVerdict ? (
+            {urlVerdict === 'Malicious' ? (
+              <>
+                <li style={{ fontSize: 13.5, lineHeight: 1.9 }}>
+                  Do not open this link or submit passwords, credentials, or personal information.
+                </li>
+                <li style={{ fontSize: 13.5, lineHeight: 1.9 }}>
+                  If received via an unsolicited message, email, or job offer, report and block the sender.
+                </li>
+              </>
+            ) : isUnverifiedVerdict ? (
               <>
                 <li style={{ fontSize: 13.5, lineHeight: 1.9 }}>
                   This domain is an unverified external address or reserved namespace; verify its authenticity through independent registries before proceeding.
@@ -1416,7 +2012,7 @@ export default function Results() {
                   Never submit passwords, personal credentials, or payment details on unverified web destinations.
                 </li>
               </>
-            ) : urlVerdict === 'Likely Legitimate' ? (
+            ) : (urlVerdict === 'No threat found' || urlVerdict === 'Likely Legitimate') ? (
               <>
                 <li style={{ fontSize: 13.5, lineHeight: 1.9 }}>
                   Confirm the browser address bar matches the exact intended domain without typos.
@@ -1495,7 +2091,7 @@ export default function Results() {
             </span>
           </div>
 
-          <HighlightedText text={jobText} />
+          <HighlightedText text={jobText} flags={flags} matches={result.matches} />
         </Panel>
       ) : urlAnalyzed ? (
         <Panel title="🔎 Analyzed URL Target">

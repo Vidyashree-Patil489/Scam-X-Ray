@@ -3,8 +3,6 @@ import {
   ShieldIcon,
   MessageSquareIcon,
   EyeScanIcon,
-  BinaryFileIcon,
-  ScaleCheckIcon,
   ArrowRightIcon,
   LockIcon
 } from '../components/Icons';
@@ -41,28 +39,6 @@ export default function Dashboard() {
       accentColor: '#ec4899',
       badge: 'Visual Media Forensics',
       route: '/ai-image-detection',
-      actionLabel: 'Open Scanner',
-    },
-    {
-      id: 'steganography-scanner',
-      title: 'Steganography Scanner',
-      tagline: 'Hidden Information Forensics',
-      description: 'Inspect image files for hidden data, suspicious metadata and unusual file structures.',
-      icon: BinaryFileIcon,
-      accentColor: '#06b6d4',
-      badge: 'Binary Payload Inspection',
-      route: '/steganography',
-      actionLabel: 'Open Scanner',
-    },
-    {
-      id: 'fact-checker',
-      title: 'Fact Checker',
-      tagline: 'Evidence-Based Claim Verification',
-      description: 'Investigate claims using retrieved information and supporting evidence.',
-      icon: ScaleCheckIcon,
-      accentColor: '#10b981',
-      badge: 'Evidence Verification',
-      route: '/fact-checker',
       actionLabel: 'Open Scanner',
     },
   ];
@@ -287,151 +263,84 @@ export default function Dashboard() {
       </section>
 
       {/* ─────────────────────────────────────────────────────────────
-          3. QUICK ACCESS & RECENT ACTIVITY (Tasteful, Subordinate)
+          3. QUICK ACCESS
       ───────────────────────────────────────────────────────────── */}
       <div
+        className="card"
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1.2fr 1fr',
-          gap: 20,
+          padding: '22px 24px',
+          background: '#ffffff',
+          border: '1px solid rgba(99, 102, 241, 0.12)',
+          borderRadius: 14,
         }}
-        className="dashboard-secondary-grid"
       >
-        {/* Recent Activity (Tasteful Empty State - No fake statistics or records) */}
-        <div
-          className="card"
+        <h3
           style={{
-            padding: '22px 24px',
-            background: '#ffffff',
-            border: '1px solid rgba(99, 102, 241, 0.12)',
-            borderRadius: 14,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            fontFamily: 'var(--font-heading)',
+            fontSize: 14.5,
+            fontWeight: 700,
+            color: '#0f172a',
+            margin: '0 0 14px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h3
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: 14.5,
-                fontWeight: 700,
-                color: '#0f172a',
-                margin: 0,
-              }}
-            >
-              Recent Activity
-            </h3>
-            <span
-              onClick={() => navigate('/history')}
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#6366f1',
-                cursor: 'pointer',
-              }}
-            >
-              View All History →
-            </span>
-          </div>
+          Quick Access
+        </h3>
 
-          {/* Genuine Zero-State */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: 12,
+          }}
+        >
+          {/* Quick Access Link 1: Security Awareness */}
           <div
+            onClick={() => navigate('/security-awareness')}
+            className="hover-lift"
             style={{
-              padding: '24px 18px',
-              background: '#f8f7ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '11px 14px',
               borderRadius: 10,
-              border: '1px dashed rgba(99, 102, 241, 0.2)',
-              textAlign: 'center',
+              background: '#f8f7ff',
+              border: '1px solid rgba(99, 102, 241, 0.12)',
+              cursor: 'pointer',
             }}
           >
-            <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'center' }}>
-              <LockIcon size={20} color="#94a3b8" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <ShieldIcon size={16} color="#6366f1" />
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>Security Awareness</div>
+                <div style={{ fontSize: 11, color: '#94a3b8' }}>Scam indicators and safety checklists</div>
+              </div>
             </div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#475569', margin: '0 0 3px' }}>
-              No previous scan records yet
-            </p>
-            <p style={{ fontSize: 11.5, color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-              Completed investigations across all four threat engines will be automatically archived here.
-            </p>
+            <ArrowRightIcon size={13} color="#94a3b8" />
           </div>
-        </div>
 
-        {/* Quick Access (Subordinate Secondary Navigation) */}
-        <div
-          className="card"
-          style={{
-            padding: '22px 24px',
-            background: '#ffffff',
-            border: '1px solid rgba(99, 102, 241, 0.12)',
-            borderRadius: 14,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <h3
+          {/* Quick Access Link 2: Settings */}
+          <div
+            onClick={() => navigate('/settings')}
+            className="hover-lift"
             style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 14.5,
-              fontWeight: 700,
-              color: '#0f172a',
-              margin: '0 0 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '11px 14px',
+              borderRadius: 10,
+              background: '#f8f7ff',
+              border: '1px solid rgba(99, 102, 241, 0.12)',
+              cursor: 'pointer',
             }}
           >
-            Quick Access
-          </h3>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Quick Access Link 1: Scan History */}
-            <div
-              onClick={() => navigate('/history')}
-              className="hover-lift"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '11px 14px',
-                borderRadius: 10,
-                background: '#f8f7ff',
-                border: '1px solid rgba(99, 102, 241, 0.12)',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <LockIcon size={16} color="#6366f1" />
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>Scan History</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Search past reports and forensic records</div>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <LockIcon size={16} color="#6366f1" />
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>Settings</div>
+                <div style={{ fontSize: 11, color: '#94a3b8' }}>Engine status and privacy information</div>
               </div>
-              <ArrowRightIcon size={13} color="#94a3b8" />
             </div>
-
-            {/* Quick Access Link 2: Security Awareness */}
-            <div
-              onClick={() => navigate('/security-awareness')}
-              className="hover-lift"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '11px 14px',
-                borderRadius: 10,
-                background: '#f8f7ff',
-                border: '1px solid rgba(99, 102, 241, 0.12)',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <ShieldIcon size={16} color="#6366f1" />
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>Security Awareness</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Scam indicators and safety checklists</div>
-                </div>
-              </div>
-              <ArrowRightIcon size={13} color="#94a3b8" />
-            </div>
+            <ArrowRightIcon size={13} color="#94a3b8" />
           </div>
         </div>
       </div>
