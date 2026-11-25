@@ -46,12 +46,18 @@ def detect_image(image_path):
             result = "Likely Human-created"
 
         return {
-            "success": True,
-            "result": result,
-            "label": label,
-            "confidence": round(confidence * 100, 2)
+    "success": True,
+    "result": result,
+    "label": label,
+    "confidence": round(confidence * 100, 2),
+    "all_predictions": [
+        {
+            "label": item["label"],
+            "confidence": round(item["score"] * 100, 2)
         }
-
+        for item in predictions
+    ]
+}
     except Exception as e:
         return {
             "success": False,
