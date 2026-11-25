@@ -90,7 +90,18 @@ The analysis response includes exact character offset spans (`[start, end]`) for
 
 ### AI Image Detection
 
-- **Status: Planned / Placeholder**. The user interface contains a placeholder view (`/ai-image-detection`) marked for Stage 6. No backend image classification or synthetic media detection model is currently active.
+ScamXRay provides synthetic media inspection to evaluate whether uploaded digital images and credential attachments are authentic photographs or synthetic media created by generative models.
+
+- **Inspection Model**: Powered by the Vision Transformer (ViT-Base, 86M parameters) classifier [`aaronkantrowitz/ai-human-generated-image-detection`](https://huggingface.co/aaronkantrowitz/ai-human-generated-image-detection) licensed under **Apache 2.0**.
+- **On-Demand Lazy Loading**: The model pipeline and weights (~343 MB safetensors) are loaded on the first image request and cached in memory. Text and URL threat analysis engines remain fully isolated and run immediately without loading image dependencies.
+- **In-Memory Processing**: Uploaded images are evaluated entirely in memory. Uploads are never written to disk, and no user-supplied filenames are used in file paths.
+- **Input Constraints**: Accepts genuine JPEG, PNG, and WebP images verified at the byte level via Pillow. Rejects empty files, non-image files, and files exceeding 5 MB (`MAX_CONTENT_LENGTH`) or exceeding pixel count limits (with decompression-bomb protection kept enabled).
+- **Probability-Based Verdicts**: Results reflect probabilities rather than definitive proof:
+  - `Likely AI-generated`: Model predicts synthetic generation with confidence >= 65%.
+  - `Likely human-created`: Model predicts human creation with confidence >= 65%.
+  - `Inconclusive`: Confidence is below 65% or the prediction is ambiguous. Unknown labels automatically produce `Inconclusive`.
+- **Accuracy & Limitations**: The official model card does not publish benchmark accuracy figures or percentage claims (it lists evaluation metrics as `accuracy` and `f1` without numeric claims). Automated image analysis can be wrong. Compressed, edited, or screenshotted images are especially difficult to classify. Results must never be treated as definitive proof.
+- **Hosting Considerations**: Machine learning dependencies (`torch` and `transformers`) require ~1–2 GB of disk space and significant runtime memory. These heavy dependencies may not fit on small free-tier hosting plans (e.g., 512 MB RAM instances).
 
 ## How It Works
 
@@ -132,6 +143,55 @@ ScamXRay uses a decoupled client-server architecture. The React frontend handles
 └────────────────────────────────────────────────────────┘
 ```
 
+### POST /analyze-image
+
+In-memory classification endpoint to determine whether an image is likely AI-generated or human-created.
+
+- **Method**: `POST`
+- **Headers**: `Content-Type: multipart/form-data`
+
+#### Request Body Fields
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `image` | binary | Yes | Image file in JPEG, PNG, or WebP format. Maximum file size: 5 MB. |
+
+#### Response Body Fields (`200 OK`)
+
+```json
+{
+  "success": true,
+  "result": "Likely AI-generated",
+  "label": "AI-generated",
+  "confidence": 95.23,
+  "all_predictions": [
+    {
+      "label": "AI-generated",
+      "confidence": 95.23
+    },
+    {
+      "label": "human",
+      "confidence": 4.77
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `success` | boolean | Indicates whether classification completed successfully (`true`). |
+| `result` | string | Probability verdict: `"Likely AI-generated"`, `"Likely human-created"`, or `"Inconclusive"`. |
+| `label` | string | Exact predicted class label from the Vision Transformer model (`"AI-generated"` or `"human"`). |
+| `confidence` | number | Confidence percentage for the top prediction (rounded to 2 decimal places). |
+| `all_predictions` | object[] | Array containing predicted labels and confidence percentages for each class. |
+
+#### Error Status Codes
+
+- `400 Bad Request`: Missing `image` field, empty file, invalid/corrupted image data, or pixel dimensions exceeding limits.
+- `413 Payload Too Large`: Uploaded file exceeds the 5 MB limit.
+- `415 Unsupported Media Type`: Image format is not JPEG, PNG, or WebP.
+- `503 Service Unavailable`: Image detection model or dependencies (`transformers`/`torch`) are unavailable.
+
 ## Tech Stack
 
 ### Frontend
@@ -151,6 +211,7 @@ ScamXRay uses a decoupled client-server architecture. The React frontend handles
 - **Web Framework**: Flask 3.1.3 (`flask`), Flask-CORS 6.0.2 (`flask-cors`)
 - **Machine Learning**: scikit-learn 1.7.2 (`scikit-learn`), NumPy
 - **Generative AI**: Groq Python SDK 1.2.0 (`groq`) using `openai/gpt-oss-20b`
+- **Deep Learning & Vision**: Hugging Face Transformers 5.24.1 (`transformers`), PyTorch 2.15.0 (`torch`), Pillow 12.3.0 (`Pillow`)
 - **Domain & URL Inspection**: Requests 2.33.1 (`requests`), tldextract 5.4.0 (`tldextract`)
 - **Environment Management**: python-dotenv 1.2.4 (`python-dotenv`)
 - **Production Server**: Gunicorn 23.0.0 (`gunicorn`, for Linux deployments)
@@ -179,12 +240,15 @@ Scam-X-Ray/
 │   ├── services/             # Core threat detection engines
 │   │   ├── analyzer.py       # Groq LLM explanation and fallback handler
 │   │   ├── category_classifier.py # Threat category and radar score mapper
+│   │   ├── image_detector.py # In-memory AI image classification service
 │   │   ├── predictor.py      # ML fraud score inference
 │   │   ├── reputation.py     # OpenPhish feed fetching and caching
 │   │   ├── rule_engine.py    # Regex heuristic rule engine with span offsets
 │   │   └── url_analyzer.py   # URL syntax indicators, SSRF guards, and network checks
 │   └── tests/                # Automated backend test suite
 │       ├── fixtures/         # Mock test payloads and responses
+│       ├── test_image_api.py # Mocked API test suite for /analyze-image
+│       ├── test_image_detection.py # Mocked unit tests for image_detector service
 │       ├── test_regression.py # Regression test suite covering URLs, rules, and scoring
 │       └── unit/             # Unit tests for domain correspondence
 ├── docs/                     # Documentation assets
@@ -425,13 +489,15 @@ ScamXRay is architected with strict data handling boundaries:
 
 - **Message Text**: When analyzing text, the content (up to the first 3,000 characters) is transmitted to the Groq API (`openai/gpt-oss-20b`) solely to generate the plain-language explanation and safety advice. If the API key is not configured, text is processed entirely on the local backend server using deterministic rules and the ML model.
 - **Link Inspection**: When inspecting URLs, the backend queries public DNS resolvers, initiates network requests to the target site to verify TLS certificates and HTTP reachability, contacts public RDAP (`rdap.org`) for domain registration age, and queries the public OpenPhish feed (`openphish.com`). All network interactions enforce strict SSRF guards that prohibit requests to private, loopback, or cloud metadata addresses.
-- **Client-Side OCR**: Screenshot text extraction is performed entirely within the user's browser using Tesseract.js. Image files, pixel data, and screenshot binaries are never uploaded or transmitted to the backend server.
-- **Data Storage and Server Logging**: The ScamXRay application does not use a database and does not store or log submitted message texts, URLs, or inspection results. All threat evaluation occurs in memory and is discarded immediately after returning the HTTP response. However, standard web servers (Flask/Werkzeug in development or Gunicorn in production) and hosting platforms maintain standard HTTP access logs recording connection metadata (client IP address, HTTP request method, endpoint URL `/analyze`, HTTP status code, and timestamp). Standard server access logs do not log HTTP POST request bodies, so submitted message text and URLs in POST payloads are not recorded in server access logs.
+- **Client-Side OCR (Scam Detection)**: In the Scam Detection workflow, screenshot text extraction executes entirely within the user's browser using Tesseract.js. Image files, pixel data, and screenshot binaries in this flow are never uploaded or transmitted to the backend server.
+- **AI Image Detection Uploads**: Images uploaded to the AI Image Detection feature are transmitted to the backend server via `multipart/form-data` and processed entirely in memory. Uploaded images are never written to disk, never persisted in any database or file, and are discarded immediately after inference completes.
+- **Data Storage and Server Logging**: The ScamXRay application does not use a database and does not store or log submitted message texts, URLs, uploaded images, or inspection results. All evaluation occurs in memory and is discarded immediately after returning the HTTP response. However, standard web servers (Flask/Werkzeug in development or Gunicorn in production) and hosting platforms maintain standard HTTP access logs recording connection metadata (client IP address, HTTP request method, endpoint URLs `/analyze` and `/analyze-image`, HTTP status code, and timestamp). Standard server access logs do not log HTTP POST request bodies or image binaries, so submitted payloads are not recorded in server access logs.
 - **No User Accounts**: ScamXRay requires no registration, logins, tokens, or personal identifiers.
 
 ## Limitations
 
 - **Advisory Guidance**: Scan results, risk scores, and threat indicators are automated assessments provided for educational and informational purposes. They do not constitute formal legal or cybersecurity guarantees.
+- **AI Image Detection Reliability**: Automated image analysis can be wrong. Compressed, edited, or screenshotted images are especially hard to judge. Novel generative models not present in the training distribution may lead to misclassifications. Results represent probability verdicts, never proof, and 'Inconclusive' results require independent manual verification.
 - **No Safety Guarantee**: A verdict of "No threat found" or a "Low" risk score is not a guarantee that a communication, company, or link is safe. Attackers continuously register new domains and vary phishing tactics.
 - **Model and Heuristic Accuracy**: Heuristic rules and machine learning classifiers can generate false positives or false negatives. Unconventional but legitimate job postings may trigger suspicion flags, while novel scam techniques may evade detection.
 - **Feed Coverage**: OpenPhish reputation checks are limited to known threats reported to and cataloged by the OpenPhish community feed. Newly created malicious links that have not yet been cataloged will not produce a feed match.

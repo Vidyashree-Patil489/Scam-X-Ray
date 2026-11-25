@@ -1,8 +1,14 @@
+
+
+import io
 import os
 import re
+import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from PIL import Image, UnidentifiedImageError
+from werkzeug.exceptions import RequestEntityTooLarge
 
 load_dotenv()
 
@@ -14,6 +20,18 @@ from services.category_classifier import classify_threat
 
 app = Flask(__name__)
 CORS(app)
+
+# Limit request bodies to 5 MB (enforced on image uploads)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+
+
+@app.errorhandler(RequestEntityTooLarge)
+@app.errorhandler(413)
+def handle_large_payload(error):
+    return jsonify({
+        "success": False,
+        "error": "Image file exceeds maximum allowed size of 5 MB"
+    }), 413
 
 
 def score_to_risk_level(score: int) -> str:
@@ -343,7 +361,99 @@ def analyze():
     return jsonify(response), 200
 
 
+
+    
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_PIXEL_COUNT = 25_000_000  # 25 megapixels (e.g. 5000 x 5000)
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
+
+
+@app.route("/analyze-image", methods=["POST"])
+def analyze_image():
+    if "image" not in request.files:
+        return jsonify({
+            "success": False,
+            "error": "No image uploaded"
+        }), 400
+
+    image_file = request.files["image"]
+
+    if not image_file or not image_file.filename or image_file.filename.strip() == "":
+        return jsonify({
+            "success": False,
+            "error": "Please select an image"
+        }), 400
+
+    file_bytes = image_file.read()
+
+    if len(file_bytes) == 0:
+        return jsonify({
+            "success": False,
+            "error": "Image file is empty"
+        }), 400
+
+    if len(file_bytes) > MAX_IMAGE_SIZE:
+        return jsonify({
+            "success": False,
+            "error": "Image file exceeds maximum allowed size of 5 MB"
+        }), 413
+
+    # Verify genuine image format and data in memory via Pillow
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        image_format = (img.format or "").upper()
+
+        if image_format not in ALLOWED_IMAGE_FORMATS:
+            return jsonify({
+                "success": False,
+                "error": f"Unsupported image format '{image_format}'. Only JPEG, PNG, and WebP are allowed"
+            }), 415
+
+        width, height = img.size
+        if width * height > MAX_PIXEL_COUNT:
+            return jsonify({
+                "success": False,
+                "error": "Image pixel count exceeds safe limits"
+            }), 400
+
+        img.load()
+    except Image.DecompressionBombError:
+        return jsonify({
+            "success": False,
+            "error": "Image pixel count exceeds safe limits"
+        }), 400
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+        return jsonify({
+            "success": False,
+            "error": "Invalid or corrupted image file"
+        }), 400
+
+    # Lazy-load image detector to isolate dependencies and prevent startup failures
+    try:
+        from services.image_detector import detect_image, ModelUnavailableError
+    except ImportError:
+        app.logger.exception("Failed to import image_detector module")
+        return jsonify({
+            "success": False,
+            "error": "Image detection is temporarily unavailable"
+        }), 503
+
+    try:
+        result = detect_image(img)
+        return jsonify(result), 200
+    except ModelUnavailableError:
+        return jsonify({
+            "success": False,
+            "error": "Image detection is temporarily unavailable"
+        }), 503
+    except Exception:
+        app.logger.exception("Image detection inference failed")
+        return jsonify({
+            "success": False,
+            "error": "Image detection failed"
+        }), 500
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="127.0.0.1", port=port, debug=debug)
+    app.run(host="127.0.0.1", port=port, debug=True)
