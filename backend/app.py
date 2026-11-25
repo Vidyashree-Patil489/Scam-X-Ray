@@ -1,5 +1,11 @@
+
+
 import os
 from flask import Flask, request, jsonify
+import tempfile
+from services.image_detector import detect_image
+
+
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -316,7 +322,53 @@ def analyze():
     return jsonify(response), 200
 
 
+
+    
+@app.route("/analyze-image", methods=["POST"])
+def analyze_image():
+    if "image" not in request.files:
+        return jsonify({
+            "success": False,
+            "error": "No image uploaded"
+        }), 400
+
+    image = request.files["image"]
+
+    if image.filename == "":
+        return jsonify({
+            "success": False,
+            "error": "Please select an image"
+        }), 400
+
+    allowed_extensions = {"jpg", "jpeg", "png", "webp"}
+    extension = image.filename.rsplit(".", 1)[-1].lower()
+
+    if extension not in allowed_extensions:
+        return jsonify({
+            "success": False,
+            "error": "Only JPG, JPEG, PNG and WEBP images are allowed"
+        }), 400
+
+    temp_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix="." + extension
+        ) as temp_file:
+            temp_path = temp_file.name
+
+        image.save(temp_path)
+
+        result = detect_image(temp_path)
+
+        return jsonify(result), 200 if result["success"] else 500
+
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="127.0.0.1", port=port, debug=debug)
+    app.run(host="127.0.0.1", port=port, debug=True)
