@@ -149,7 +149,7 @@ export default function Settings() {
         </p>
         <ul style={{ paddingLeft: 20, margin: 0, color: '#334155', fontSize: 14, lineHeight: 1.8 }}>
           <li>
-            <strong>What is sent to our backend:</strong> When submitting text or links, only the raw text or URL string is sent to our server via JSON. For screenshot scans, OCR text extraction executes locally in your browser—the image file itself is never transmitted to our backend.
+            <strong>What is sent to our backend:</strong> When submitting text or links, only the raw text or URL string is sent to our server via JSON. For screenshot scans in Scam Detection, OCR text extraction executes locally in your browser—the image file itself is never transmitted to our backend. For AI Image Detection, the uploaded image file is sent to our backend via multipart/form-data, processed entirely in memory, and never written to disk or stored.
           </li>
           <li>
             <strong>External AI service:</strong> Message text (up to the first 3,000 characters) is sent to Groq&apos;s API (<code style={{ fontSize: 13, background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>openai/gpt-oss-20b</code>) to generate plain-language risk explanations and actionable tips. If unavailable, local fallback explanations are used.
@@ -161,7 +161,7 @@ export default function Settings() {
             <strong>No accounts or sign-in:</strong> No user registration, login credentials, authentication tokens, or personal identifiers are required to perform scans.
           </li>
           <li>
-            <strong>Scan results are not stored:</strong> Scan submissions, extracted text, and inspection reports are not stored or persisted in any database or file on our server. All processing is held in memory and returned immediately.
+            <strong>Scan results are not stored:</strong> Scan submissions, uploaded images, extracted text, and inspection reports are not stored or persisted in any database or file on our server. All processing is held in memory and returned immediately.
           </li>
         </ul>
       </div>

@@ -1,14 +1,14 @@
 
 
+import io
 import os
 import re
+import logging
 from flask import Flask, request, jsonify
-import tempfile
-from services.image_detector import detect_image
-
-
 from flask_cors import CORS
 from dotenv import load_dotenv
+from PIL import Image, UnidentifiedImageError
+from werkzeug.exceptions import RequestEntityTooLarge
 
 load_dotenv()
 
@@ -20,6 +20,18 @@ from services.category_classifier import classify_threat
 
 app = Flask(__name__)
 CORS(app)
+
+# Limit request bodies to 5 MB (enforced on image uploads)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+
+
+@app.errorhandler(RequestEntityTooLarge)
+@app.errorhandler(413)
+def handle_large_payload(error):
+    return jsonify({
+        "success": False,
+        "error": "Image file exceeds maximum allowed size of 5 MB"
+    }), 413
 
 
 def score_to_risk_level(score: int) -> str:
@@ -351,6 +363,11 @@ def analyze():
 
 
     
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_PIXEL_COUNT = 25_000_000  # 25 megapixels (e.g. 5000 x 5000)
+ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
+
+
 @app.route("/analyze-image", methods=["POST"])
 def analyze_image():
     if "image" not in request.files:
@@ -359,41 +376,82 @@ def analyze_image():
             "error": "No image uploaded"
         }), 400
 
-    image = request.files["image"]
+    image_file = request.files["image"]
 
-    if image.filename == "":
+    if not image_file or not image_file.filename or image_file.filename.strip() == "":
         return jsonify({
             "success": False,
             "error": "Please select an image"
         }), 400
 
-    allowed_extensions = {"jpg", "jpeg", "png", "webp"}
-    extension = image.filename.rsplit(".", 1)[-1].lower()
+    file_bytes = image_file.read()
 
-    if extension not in allowed_extensions:
+    if len(file_bytes) == 0:
         return jsonify({
             "success": False,
-            "error": "Only JPG, JPEG, PNG and WEBP images are allowed"
+            "error": "Image file is empty"
         }), 400
 
-    temp_path = None
+    if len(file_bytes) > MAX_IMAGE_SIZE:
+        return jsonify({
+            "success": False,
+            "error": "Image file exceeds maximum allowed size of 5 MB"
+        }), 413
+
+    # Verify genuine image format and data in memory via Pillow
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        image_format = (img.format or "").upper()
+
+        if image_format not in ALLOWED_IMAGE_FORMATS:
+            return jsonify({
+                "success": False,
+                "error": f"Unsupported image format '{image_format}'. Only JPEG, PNG, and WebP are allowed"
+            }), 415
+
+        width, height = img.size
+        if width * height > MAX_PIXEL_COUNT:
+            return jsonify({
+                "success": False,
+                "error": "Image pixel count exceeds safe limits"
+            }), 400
+
+        img.load()
+    except Image.DecompressionBombError:
+        return jsonify({
+            "success": False,
+            "error": "Image pixel count exceeds safe limits"
+        }), 400
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+        return jsonify({
+            "success": False,
+            "error": "Invalid or corrupted image file"
+        }), 400
+
+    # Lazy-load image detector to isolate dependencies and prevent startup failures
+    try:
+        from services.image_detector import detect_image, ModelUnavailableError
+    except ImportError:
+        app.logger.exception("Failed to import image_detector module")
+        return jsonify({
+            "success": False,
+            "error": "Image detection is temporarily unavailable"
+        }), 503
 
     try:
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix="." + extension
-        ) as temp_file:
-            temp_path = temp_file.name
-
-        image.save(temp_path)
-
-        result = detect_image(temp_path)
-
-        return jsonify(result), 200 if result["success"] else 500
-
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
+        result = detect_image(img)
+        return jsonify(result), 200
+    except ModelUnavailableError:
+        return jsonify({
+            "success": False,
+            "error": "Image detection is temporarily unavailable"
+        }), 503
+    except Exception:
+        app.logger.exception("Image detection inference failed")
+        return jsonify({
+            "success": False,
+            "error": "Image detection failed"
+        }), 500
 
 
 if __name__ == "__main__":

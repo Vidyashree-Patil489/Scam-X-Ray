@@ -1,32 +1,76 @@
-from transformers import pipeline
+import io
+import logging
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 # Pretrained AI image detection model
 MODEL_NAME = "aaronkantrowitz/ai-human-generated-image-detection"
 
-# Load the model only once
+# Minimum confidence threshold for classification; predictions below 0.65 are Inconclusive
+CONFIDENCE_THRESHOLD = 0.65
+
+# Explicit mapping derived from model config id2label: {'0': 'human', '1': 'AI-generated'}
+LABEL_MAPPING = {
+    "AI-generated": "Likely AI-generated",
+    "human": "Likely human-created",
+}
+
+# Cached pipeline instance
 detector = None
 
 
+class ModelUnavailableError(Exception):
+    """Raised when the AI image detection model or its dependencies are unavailable."""
+    pass
+
+
 def load_model():
+    """
+    Lazy-loads the Hugging Face image classification pipeline on first request.
+    Caches the loaded pipeline in memory. Raises ModelUnavailableError if
+    transformers/torch is missing or if model downloading/loading fails.
+    """
     global detector
 
     if detector is None:
-        print("Loading AI image detection model...")
-        detector = pipeline(
-            "image-classification",
-            model=MODEL_NAME
-        )
-        print("Model loaded successfully!")
+        logger.info("Loading AI image detection model '%s'...", MODEL_NAME)
+        try:
+            from transformers import pipeline
+        except ImportError as err:
+            logger.error("Image detection dependencies (transformers/torch) not installed: %s", err)
+            raise ModelUnavailableError("Image detection dependencies are missing") from err
+
+        try:
+            detector = pipeline(
+                "image-classification",
+                model=MODEL_NAME
+            )
+            logger.info("AI image detection model loaded successfully.")
+        except Exception as err:
+            logger.exception("Failed to load or initialize AI image detection model '%s': %s", MODEL_NAME, err)
+            raise ModelUnavailableError("Failed to initialize image detection model") from err
 
     return detector
 
 
-def detect_image(image_path):
-    try:
-        model = load_model()
+def detect_image(image_input):
+    """
+    Classifies an in-memory image as likely AI-generated or likely human-created.
+    Accepts a PIL Image, raw bytes, bytearray, or a file-like stream.
+    Processes the image entirely in memory with no disk writes.
+    """
+    model = load_model()
 
-        image = Image.open(image_path).convert("RGB")
+    try:
+        if isinstance(image_input, Image.Image):
+            image = image_input.convert("RGB")
+        elif isinstance(image_input, (bytes, bytearray)):
+            image = Image.open(io.BytesIO(image_input)).convert("RGB")
+        elif hasattr(image_input, "read"):
+            image = Image.open(image_input).convert("RGB")
+        else:
+            raise ValueError("Unsupported image input type; expected PIL Image or bytes")
 
         predictions = model(image)
 
@@ -36,14 +80,16 @@ def detect_image(image_path):
         )
 
         label = best_prediction["label"]
-        confidence = best_prediction["score"]
+        confidence = float(best_prediction["score"])
 
-        if confidence < 0.65:
+        # Determine probability-based verdict
+        if confidence < CONFIDENCE_THRESHOLD:
             result = "Inconclusive"
-        elif "AI" in label.upper():
-            result = "Likely AI-generated"
+        elif label in LABEL_MAPPING:
+            result = LABEL_MAPPING[label]
         else:
-            result = "Likely Human-created"
+            # Unknown labels must produce Inconclusive, never a guess
+            result = "Inconclusive"
 
         return {
             "success": True,
@@ -58,9 +104,8 @@ def detect_image(image_path):
                 for item in predictions
             ]
         }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+    except ModelUnavailableError:
+        raise
+    except Exception as err:
+        logger.exception("Unexpected error during image classification: %s", err)
+        raise
