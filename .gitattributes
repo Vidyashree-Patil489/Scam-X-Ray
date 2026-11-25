@@ -1,0 +1,25 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Binary files - do not touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pkl binary
+
+# Explicit text files
+*.py text
+*.js text
+*.jsx text
+*.mjs text
+*.html text
+*.css text
+*.json text
+*.md text
+*.svg text
+*.yaml text
+*.yml text
+.env.example text
+Procfile text

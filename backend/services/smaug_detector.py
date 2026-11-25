@@ -27,13 +27,17 @@ def load_model():
     return detector
 
 
-def detect_image(image_path):
+def detect_image(image_input):
     try:
         model = load_model()
 
-        with Image.open(image_path) as image:
-            image = image.convert("RGB")
-            ai_probability = float(model(image))
+        if isinstance(image_input, Image.Image):
+            image = image_input.convert("RGB")
+        else:
+            with Image.open(image_input) as source:
+                image = source.convert("RGB")
+
+        ai_probability = float(model(image))
 
         human_probability = 1.0 - ai_probability
 

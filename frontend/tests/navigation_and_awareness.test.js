@@ -13,6 +13,8 @@ let App;
 let Dashboard;
 let Home;
 let Settings;
+let AIImageDetection;
+let AIImageResults;
 
 test.before(async () => {
   server = await createServer({
@@ -36,6 +38,12 @@ test.before(async () => {
 
   const settingsMod = await server.ssrLoadModule('./src/pages/Settings.jsx');
   Settings = settingsMod.default;
+
+  const detectionMod = await server.ssrLoadModule('./src/pages/AIImageDetection.jsx');
+  AIImageDetection = detectionMod.default;
+
+  const resultsMod = await server.ssrLoadModule('./src/pages/AIImageResults.jsx');
+  AIImageResults = resultsMod.default;
 });
 
 test.after(async () => {
@@ -275,4 +283,181 @@ test('Settings page renders all informational sections, engine status, and priva
   // Section 5: About ScamXRay
   assert.ok(html.includes('About ScamXRay'));
   assert.ok(html.includes('href="/security-awareness"'));
+});
+
+test('AIImageDetection page renders dropzone instructions and limitations card', () => {
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: ['/ai-image-detection'] },
+      React.createElement(AIImageDetection)
+    )
+  );
+
+  // Dropzone text
+  assert.ok(html.includes('Drag and drop an image here, click to browse, or paste one (Ctrl+V)'));
+  assert.ok(html.includes('Supports JPEG, PNG, WebP up to 5 MB'));
+
+  // Limitations card before analysis
+  assert.ok(html.includes('Limitations &amp; Guidance') || html.includes('Limitations & Guidance'));
+  assert.ok(html.includes('Automated image analysis can be wrong. Compressed, edited or screenshotted images are especially hard to judge. Do not treat this as proof.'));
+  assert.ok(html.includes('What &quot;Inconclusive&quot; means:') || html.includes('What "Inconclusive" means:'));
+});
+
+test('AIImageResults page renders all sections for Likely AI-generated, Likely human-created, and Inconclusive', () => {
+  // Test Case 1: Likely AI-generated
+  const stateAI = {
+    result: {
+      success: true,
+      result: 'Likely AI-generated',
+      label: 'AI-generated',
+      confidence: 94.2,
+      all_predictions: [
+        { label: 'AI-generated', confidence: 94.2 },
+        { label: 'human', confidence: 5.8 },
+      ],
+    },
+    filename: 'suspicious_portrait.png',
+  };
+
+  const htmlAI = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: [{ pathname: '/ai-image-results', state: stateAI }] },
+      React.createElement(AIImageResults)
+    )
+  );
+
+  // Section a: Header
+  assert.ok(htmlAI.includes('AI Image Detection Report'));
+  assert.ok(htmlAI.includes('Analyze another image'));
+  assert.ok(htmlAI.includes('Back to Image Detection'));
+
+  // Section b: Verdict card
+  assert.ok(htmlAI.includes('Detection Verdict'));
+  assert.ok(htmlAI.includes('Likely AI-generated'));
+  assert.ok(htmlAI.includes('94.2%'));
+  assert.ok(htmlAI.includes('AI-generated'));
+  assert.ok(htmlAI.includes('Human-created'));
+
+  // Section c: What this result means
+  assert.ok(htmlAI.includes('What This Result Means'));
+  assert.ok(htmlAI.includes('The model estimates a 94.2% probability that this image is AI-generated. It does not show which parts of the image led to this result.'));
+  assert.ok(htmlAI.includes('65%'));
+
+  // Section d: What to look for
+  assert.ok(htmlAI.includes('What to Look for in Images'));
+  assert.ok(htmlAI.includes('Look closely'));
+  assert.ok(htmlAI.includes('Check the source'));
+
+  // Section e: How this was analysed
+  assert.ok(htmlAI.includes('How This Was Analysed'));
+  assert.ok(htmlAI.includes('https://huggingface.co/aaronkantrowitz/ai-human-generated-image-detection'));
+  assert.ok(htmlAI.includes('Your image was sent to the ScamXRay server, analysed in memory and not stored.'));
+
+  // Section f: Limitations card
+  assert.ok(htmlAI.includes('Limitations &amp; Guidance') || htmlAI.includes('Limitations & Guidance'));
+  assert.ok(htmlAI.includes('Automated image analysis can be wrong. Compressed, edited or screenshotted images are especially hard to judge. Do not treat this as proof.'));
+
+  // Test Case 2: Likely human-created
+  const stateHuman = {
+    result: {
+      success: true,
+      result: 'Likely human-created',
+      label: 'human',
+      confidence: 91.5,
+      all_predictions: [
+        { label: 'human', confidence: 91.5 },
+        { label: 'AI-generated', confidence: 8.5 },
+      ],
+    },
+    filename: 'team_photo.jpg',
+  };
+
+  const htmlHuman = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: [{ pathname: '/ai-image-results', state: stateHuman }] },
+      React.createElement(AIImageResults)
+    )
+  );
+
+  assert.ok(htmlHuman.includes('Likely human-created'));
+  assert.ok(htmlHuman.includes('The model estimates a 91.5% probability that this image is human-created. This does not prove the image is authentic or unedited.'));
+
+  // Test Case 3: Inconclusive
+  const stateInconclusive = {
+    result: {
+      success: true,
+      result: 'Inconclusive',
+      label: 'AI-generated',
+      confidence: 58.0,
+      all_predictions: [
+        { label: 'AI-generated', confidence: 58.0 },
+        { label: 'human', confidence: 42.0 },
+      ],
+    },
+    filename: 'blurry_badge.jpg',
+  };
+
+  const htmlInconclusive = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: [{ pathname: '/ai-image-results', state: stateInconclusive }] },
+      React.createElement(AIImageResults)
+    )
+  );
+
+  assert.ok(htmlInconclusive.includes('Inconclusive'));
+  assert.ok(
+    htmlInconclusive.includes("The model's confidence was below 65%, so the result is not reliable either way. Treat it as unverified and check the image manually.") ||
+    htmlInconclusive.includes("The model&#x27;s confidence was below 65%, so the result is not reliable either way. Treat it as unverified and check the image manually.")
+  );
+});
+
+test('AIImageResults page redirects without state', () => {
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: ['/ai-image-results'] },
+      React.createElement(AIImageResults)
+    )
+  );
+
+  // Without state, the report must not be rendered
+  assert.equal(html.includes('AI Image Detection Report'), false);
+  assert.equal(html.includes('Detection Verdict'), false);
+});
+
+test('AI Image pages do not make proof-style claims in rendered text', () => {
+  const stateAI = {
+    result: {
+      success: true,
+      result: 'Likely AI-generated',
+      label: 'AI-generated',
+      confidence: 94.2,
+      all_predictions: [
+        { label: 'AI-generated', confidence: 94.2 },
+        { label: 'human', confidence: 5.8 },
+      ],
+    },
+    filename: 'test.jpg',
+  };
+
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: [{ pathname: '/ai-image-results', state: stateAI }] },
+      React.createElement(AIImageResults)
+    )
+  );
+
+  // Must disclaim proof
+  assert.ok(html.includes('Do not treat this as proof'));
+  assert.ok(html.includes('This does not prove') || html.includes('does not show which parts'));
+
+  // Must not claim conclusive proof or guarantee
+  assert.equal(html.includes('conclusive proof'), false);
+  assert.equal(html.includes('definitively proved'), false);
+  assert.equal(html.includes('guaranteed authentic'), false);
 });

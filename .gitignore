@@ -1,28 +1,64 @@
-# Node
+# Environment and local secrets (never commit actual secret files)
+.env
+.env.*
+*.env
+!.env.example
+!backend/.env.example
+!**/.env.example
+
+# Node / Frontend build
 node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/.vercel/
-frontend/.env
+dist/
+dist-ssr/
+.vercel/
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
 backend/__pycache__/
-backend/*.pyc
-backend/**/__pycache__/
-backend/**/*.pyc
-backend/.env
 backend/cache/
-backend/venv/
+
+# Virtual environments
 venv/
 .venv/
+env/
+ENV/
+backend/venv/
 
-# OS files
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test, coverage, and linter caches
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+.eslintcache/
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# API keys & secrets — NEVER commit these
-.env
-*.env
-backend/.env
+# Editor and IDE configurations
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+backend/eval_images/
+backend/eval_results/
