@@ -352,16 +352,16 @@ export default function Home() {
               </div>
               <div style={{ width: 1, background: 'rgba(255, 255, 255, 0.12)' }} />
               <div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#c084fc' }}>100%</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#c084fc' }}>0</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Privacy Focused
+                  Accounts Required
                 </div>
               </div>
               <div style={{ width: 1, background: 'rgba(255, 255, 255, 0.12)' }} />
               <div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#f472b6' }}>Instant</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#f472b6' }}>Fast</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Local Heuristics
+                  Rule-Based Checks
                 </div>
               </div>
             </div>

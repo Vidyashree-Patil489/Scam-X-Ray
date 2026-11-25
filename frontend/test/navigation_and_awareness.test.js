@@ -12,6 +12,7 @@ let SecurityAwareness;
 let App;
 let Dashboard;
 let Home;
+let Settings;
 
 test.before(async () => {
   server = await createServer({
@@ -32,6 +33,9 @@ test.before(async () => {
 
   const homeMod = await server.ssrLoadModule('./src/pages/Home.jsx');
   Home = homeMod.default;
+
+  const settingsMod = await server.ssrLoadModule('./src/pages/Settings.jsx');
+  Settings = settingsMod.default;
 });
 
 test.after(async () => {
@@ -138,7 +142,7 @@ test('App routes and components load without removed pages', () => {
   assert.ok(App);
 });
 
-test('Dashboard renders only Scam Detection and AI Image Detection tools, no history link', () => {
+test('Dashboard renders only Scam Detection and AI Image Detection tools, no Recent Activity widget', () => {
   const html = ReactDOMServer.renderToStaticMarkup(
     React.createElement(
       MemoryRouter,
@@ -154,15 +158,20 @@ test('Dashboard renders only Scam Detection and AI Image Detection tools, no his
   assert.equal(html.includes('Fact Checker'), false);
 
   // Quick Access
+  assert.ok(html.includes('Quick Access'));
   assert.ok(html.includes('Security Awareness'));
+  assert.ok(html.includes('Settings'));
+  assert.ok(html.includes('Engine status and privacy information'));
   assert.equal(html.includes('Scan History'), false);
 
-  // Recent Activity
+  // Recent Activity - entire widget removed
+  assert.equal(html.includes('Recent Activity'), false);
   assert.equal(html.includes('View All History'), false);
-  assert.ok(html.includes('Completed investigations across all four threat engines will be automatically archived here.'));
+  assert.equal(html.includes('No previous scan records yet'), false);
+  assert.equal(html.includes('Completed investigations across all four threat engines will be automatically archived here.'), false);
 });
 
-test('Home page renders updated copy, 2 detection engines, and no removed features', () => {
+test('Home page renders updated copy, 2 detection engines, updated hero stats, and no removed features', () => {
   const html = ReactDOMServer.renderToStaticMarkup(
     React.createElement(
       MemoryRouter,
@@ -175,6 +184,12 @@ test('Home page renders updated copy, 2 detection engines, and no removed featur
   assert.ok(html.includes('From suspicious messages and links to AI-generated images, ScamXRay brings powerful digital threat analysis tools together in one place.'));
   assert.ok(html.includes('>2<') && html.includes('Detection Engines'));
   assert.equal(html.includes('Forensic Modules'), false);
+
+  // Updated hero stats
+  assert.ok(html.includes('>0<') && html.includes('Accounts Required'));
+  assert.equal(html.includes('Privacy Focused'), false);
+  assert.ok(html.includes('>Fast<') && html.includes('Rule-Based Checks'));
+  assert.equal(html.includes('Local Heuristics'), false);
 
   // Floating tags
   assert.equal(html.includes('Hidden Payload Check'), false);
@@ -210,4 +225,54 @@ test('Home page renders updated copy, 2 detection engines, and no removed featur
   assert.ok(html.includes('Intelligent digital safety platform unifying scam detection and synthetic media analysis.'));
   assert.equal(html.includes('forensic steganography'), false);
   assert.equal(html.includes('factual claim verification'), false);
+});
+
+test('Settings page renders all informational sections, engine status, and privacy architecture', () => {
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: ['/settings'] },
+      React.createElement(Settings)
+    )
+  );
+
+  // Header
+  assert.ok(html.includes('Platform Settings'));
+
+  // Section 1: Engine status
+  assert.ok(html.includes('Engine Ready'));
+  assert.ok(html.includes('Engine Status'));
+
+  // Section 2: What ScamXRay checks
+  assert.ok(html.includes('What ScamXRay Checks'));
+  assert.ok(html.includes('Text and messages:'));
+  assert.ok(html.includes('Links:'));
+  assert.ok(html.includes('Screenshots:'));
+  assert.ok(html.includes('OpenPhish'));
+  assert.ok(html.includes('Malicious'));
+  assert.ok(html.includes('Suspicious'));
+  assert.ok(html.includes('No threat found'));
+  assert.ok(html.includes('Unknown'));
+
+  // Section 3: Privacy and data
+  assert.ok(html.includes('Privacy and Data Handling'));
+  assert.ok(html.includes('What is sent to our backend:'));
+  assert.ok(html.includes('External AI service:'));
+  assert.ok(html.includes('Groq'));
+  assert.ok(html.includes('openai/gpt-oss-20b'));
+  assert.ok(html.includes('URL scan network requests:'));
+  assert.ok(html.includes('rdap.org'));
+  assert.ok(html.includes('openphish.com'));
+  assert.ok(html.includes('No accounts or sign-in:'));
+  assert.ok(html.includes('Scan results are not stored:'));
+
+  // Section 4: Limits of automated analysis
+  assert.ok(html.includes('Limits of Automated Analysis'));
+  assert.ok(html.includes('Advisory nature:'));
+  assert.ok(html.includes('No safety guarantee:'));
+  assert.ok(html.includes('Verify with official sources:'));
+
+  // Section 5: About ScamXRay
+  assert.ok(html.includes('About ScamXRay'));
+  assert.ok(html.includes('href="/security-awareness"'));
 });
