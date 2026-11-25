@@ -6,6 +6,7 @@ import Analyzer from './pages/Analyzer';
 import Results from './pages/Results';
 import About from './pages/About';
 import AIImageDetection from './pages/AIImageDetection';
+import AIImageResults from './pages/AIImageResults';
 
 
 import SecurityAwareness from './pages/SecurityAwareness';
@@ -36,6 +37,7 @@ export default function App() {
 
           {/* AI Image Detection */}
           <Route path="/ai-image-detection" element={<AIImageDetection />} />
+          <Route path="/ai-image-results" element={<AIImageResults />} />
 
           {/* Redirects for removed legacy tools so old bookmarks redirect gracefully */}
           <Route path="/steganography" element={<Navigate to="/dashboard" replace />} />

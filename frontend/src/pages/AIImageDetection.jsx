@@ -1,22 +1,127 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ImageIcon } from '../components/Icons';
+
+const LIMITATIONS_CONTENT = {
+  title: 'Limitations & Guidance',
+  summary:
+    'Automated image analysis can be wrong. Compressed, edited or screenshotted images are especially hard to judge. Do not treat this as proof.',
+  inconclusiveExplanation:
+    'What "Inconclusive" means: The model did not attain the minimum confidence threshold (65%) or the visual signals were ambiguous between human and synthetic origin. Inconclusive outcomes require manual inspection and should not be relied upon as verification of authenticity or synthetic generation.',
+  difficultFormats:
+    'Flat graphics, posters, screenshots, compressed or edited images are especially hard to judge.',
+};
+
+export function LimitationsCard() {
+  return (
+    <div className="card" style={{ padding: '24px 28px' }}>
+      <h2
+        style={{
+          fontFamily: 'var(--font-heading)',
+          fontSize: 18,
+          fontWeight: 700,
+          color: '#0f172a',
+          margin: '0 0 12px',
+        }}
+      >
+        {LIMITATIONS_CONTENT.title}
+      </h2>
+      <p style={{ fontSize: 14.5, color: '#475569', lineHeight: 1.6, margin: '0 0 10px' }}>
+        {LIMITATIONS_CONTENT.summary}
+      </p>
+      <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, margin: 0 }}>
+        <strong>What &quot;Inconclusive&quot; means:</strong>{' '}
+        {LIMITATIONS_CONTENT.inconclusiveExplanation.replace('What "Inconclusive" means: ', '')}{' '}
+        {LIMITATIONS_CONTENT.difficultFormats}
+      </p>
+    </div>
+  );
+}
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+function validateFile(file) {
+  if (!file) {
+    return 'Please select an image first.';
+  }
+  if (file.size === 0) {
+    return 'The selected image file is empty. Please choose a valid image.';
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return 'The selected image exceeds the 5 MB limit. Please choose a smaller image.';
+  }
+  const isTypeValid = file.type && ALLOWED_TYPES.includes(file.type.toLowerCase());
+  const name = file.name ? file.name.toLowerCase() : '';
+  const isExtValid = ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  if (!isTypeValid && !isExtValid) {
+    return 'Unsupported file format. Please upload a JPEG, PNG, or WebP image.';
+  }
+  return null;
+}
 
 export default function AIImageDetection() {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [result, setResult] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const fileRef = useRef(null);
+  const navigate = useNavigate();
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-
+  const handleFileSelect = useCallback((file) => {
     if (!file) return;
-
-    setImage(file);
-    setPreview(URL.createObjectURL(file));
-    setResult(null);
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError('');
+    setImage(file);
+    setPreview((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return URL.createObjectURL(file);
+    });
+  }, []);
+
+  const handleRemove = (e) => {
+    if (e) e.stopPropagation();
+    setPreview((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+    setImage(null);
+    setError('');
+    if (fileRef.current) {
+      fileRef.current.value = '';
+    }
   };
+
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            handleFileSelect(file);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [handleFileSelect]);
 
   const handleAnalyze = async () => {
     if (!image) {
@@ -26,19 +131,15 @@ export default function AIImageDetection() {
 
     setLoading(true);
     setError('');
-    setResult(null);
 
     try {
       const formData = new FormData();
       formData.append('image', image);
 
-      const response = await fetch(
-        'http://127.0.0.1:5000/analyze-image',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
+      const response = await fetch('http://127.0.0.1:5000/analyze-image', {
+        method: 'POST',
+        body: formData,
+      });
 
       let data;
       try {
@@ -61,9 +162,21 @@ export default function AIImageDetection() {
         }
       }
 
-      setResult(data);
+      navigate('/ai-image-results', {
+        state: {
+          result: data,
+          image,
+          imageUrl: preview,
+          filename: image.name || 'Pasted Image',
+        },
+      });
     } catch (err) {
-      if (err.name === 'TypeError' || err.message.includes('fetch') || err.message.includes('NetworkError') || err.message.includes('Failed to fetch')) {
+      if (
+        err.name === 'TypeError' ||
+        err.message.includes('fetch') ||
+        err.message.includes('NetworkError') ||
+        err.message.includes('Failed to fetch')
+      ) {
         setError('Unable to connect to the backend server. Please verify the service is running.');
       } else {
         setError(err.message || 'Unable to connect to the backend.');
@@ -71,27 +184,6 @@ export default function AIImageDetection() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getResultBadgeStyle = (verdict) => {
-    if (verdict === 'Likely AI-generated') {
-      return {
-        background: 'rgba(239, 68, 68, 0.08)',
-        border: '1px solid rgba(239, 68, 68, 0.25)',
-        color: '#dc2626',
-      };
-    } else if (verdict === 'Likely human-created') {
-      return {
-        background: 'rgba(16, 185, 129, 0.08)',
-        border: '1px solid rgba(16, 185, 129, 0.25)',
-        color: '#059669',
-      };
-    }
-    return {
-      background: 'rgba(245, 158, 11, 0.08)',
-      border: '1px solid rgba(245, 158, 11, 0.25)',
-      color: '#d97706',
-    };
   };
 
   return (
@@ -139,7 +231,7 @@ export default function AIImageDetection() {
         </p>
       </div>
 
-      {/* Upload Box Card */}
+      {/* Upload Card */}
       <div className="card" style={{ padding: '24px 28px' }}>
         <h2
           style={{
@@ -153,60 +245,108 @@ export default function AIImageDetection() {
           Select Image
         </h2>
 
-        <div style={{ marginBottom: 16 }}>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleImageChange}
-            style={{
-              display: 'block',
-              fontSize: 14,
-              color: '#475569',
-              fontFamily: 'var(--font-body)',
-            }}
-          />
-          <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 6, display: 'block' }}>
-            Supported formats: JPEG, PNG, WebP (max 5 MB)
-          </span>
-        </div>
-
-        {preview && (
-          <div style={{ margin: '16px 0' }}>
-            <h3
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#334155',
-                marginBottom: 8,
-              }}
-            >
-              Image Preview
-            </h3>
-            <div
-              style={{
-                display: 'inline-block',
-                borderRadius: 10,
-                overflow: 'hidden',
-                border: '1px solid var(--border)',
-                background: '#f8fafc',
-                padding: 6,
-              }}
-            >
+        {/* Dropzone */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Upload image"
+          onClick={() => fileRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileRef.current?.click();
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const droppedFile = e.dataTransfer.files?.[0];
+            if (droppedFile) handleFileSelect(droppedFile);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          style={{
+            border: `2px dashed ${dragOver ? '#6366f1' : 'rgba(99, 102, 241, 0.25)'}`,
+            borderRadius: 12,
+            padding: '32px 20px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            background: dragOver ? 'rgba(99, 102, 241, 0.05)' : '#faf9ff',
+            transition: 'all 0.2s',
+            outline: 'none',
+          }}
+        >
+          {preview ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <img
                 src={preview}
-                alt="Uploaded preview"
+                alt="Selected preview"
                 style={{
-                  maxWidth: '300px',
-                  maxHeight: '300px',
+                  maxHeight: 180,
+                  maxWidth: '100%',
                   objectFit: 'contain',
-                  display: 'block',
-                  borderRadius: 6,
+                  borderRadius: 8,
+                  marginBottom: 12,
+                  border: '1px solid rgba(99, 102, 241, 0.15)',
                 }}
               />
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', margin: '0 0 4px' }}>
+                {image?.name || 'Pasted image'}
+              </p>
+              {image?.size && (
+                <span style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+                  {(image.size / (1024 * 1024)).toFixed(2)} MB
+                </span>
+              )}
+              <span style={{ fontSize: 12, color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>
+                Click or drag to replace image
+              </span>
+              <button
+                type="button"
+                onClick={handleRemove}
+                style={{
+                  padding: '4px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#dc2626',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                Remove
+              </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, color: '#6366f1' }}>
+                <ImageIcon size={36} color="#6366f1" />
+              </div>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: '#334155', margin: '0 0 4px' }}>
+                Drag and drop an image here, click to browse, or paste one (Ctrl+V)
+              </p>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+                Supports JPEG, PNG, WebP up to 5 MB
+              </p>
+            </div>
+          )}
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFileSelect(f);
+            e.target.value = '';
+          }}
+        />
 
         <div style={{ marginTop: 18 }}>
           <button
@@ -217,8 +357,8 @@ export default function AIImageDetection() {
               padding: '10px 24px',
               fontSize: 14,
               fontWeight: 700,
-              cursor: (!image || loading) ? 'not-allowed' : 'pointer',
-              opacity: (!image || loading) ? 0.6 : 1,
+              cursor: !image || loading ? 'not-allowed' : 'pointer',
+              opacity: !image || loading ? 0.6 : 1,
             }}
           >
             {loading ? 'Analyzing Image...' : 'Analyze Image'}
@@ -243,7 +383,7 @@ export default function AIImageDetection() {
           </div>
         )}
 
-        {/* Error State */}
+        {/* Inline Error Message */}
         {error && (
           <div
             style={{
@@ -262,76 +402,8 @@ export default function AIImageDetection() {
         )}
       </div>
 
-      {/* Detection Result Card */}
-      {result && (
-        <div className="card" style={{ padding: '24px 28px' }}>
-          <h2
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 18,
-              fontWeight: 700,
-              color: '#0f172a',
-              margin: '0 0 16px',
-            }}
-          >
-            Detection Result
-          </h2>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '6px 14px',
-                borderRadius: 20,
-                fontSize: 15,
-                fontWeight: 700,
-                ...getResultBadgeStyle(result.result),
-              }}
-            >
-              {result.result}
-            </span>
-            <span style={{ fontSize: 14, color: '#64748b' }}>
-              Confidence: <strong>{result.confidence}%</strong>
-            </span>
-          </div>
-
-          <p style={{ fontSize: 13.5, color: '#475569', margin: '0 0 6px' }}>
-            Model Label: <code style={{ fontSize: 13, background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{result.label}</code>
-          </p>
-
-          {result.all_predictions && result.all_predictions.length > 0 && (
-            <div style={{ marginTop: 12, fontSize: 13, color: '#64748b' }}>
-              <span>Class probabilities: </span>
-              {result.all_predictions.map((p, idx) => (
-                <span key={p.label}>
-                  {p.label}: {p.confidence}%{idx < result.all_predictions.length - 1 ? ' | ' : ''}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Limitations Note Card */}
-      <div className="card" style={{ padding: '24px 28px' }}>
-        <h2
-          style={{
-            fontFamily: 'var(--font-heading)',
-            fontSize: 18,
-            fontWeight: 700,
-            color: '#0f172a',
-            margin: '0 0 12px',
-          }}
-        >
-          Limitations & Guidance
-        </h2>
-        <p style={{ fontSize: 14.5, color: '#475569', lineHeight: 1.6, margin: '0 0 10px' }}>
-          Automated image analysis can be wrong. Compressed, edited or screenshotted images are especially hard to judge. Do not treat this as proof.
-        </p>
-        <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, margin: 0 }}>
-          <strong>What &quot;Inconclusive&quot; means:</strong> The model did not attain the minimum confidence threshold (65%) or the visual signals were ambiguous between human and synthetic origin. Inconclusive outcomes require manual inspection and should not be relied upon as verification of authenticity or synthetic generation.
-        </p>
-      </div>
+      {/* Limitations Card (Before Analysis) */}
+      <LimitationsCard />
     </div>
   );
 }

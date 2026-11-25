@@ -26,3 +26,6 @@ Thumbs.db
 .env
 *.env
 backend/.env
+
+backend/eval_images/
+backend/eval_results/
