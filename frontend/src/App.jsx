@@ -6,7 +6,7 @@ import Analyzer from './pages/Analyzer';
 import Results from './pages/Results';
 import About from './pages/About';
 
-import AIImageDetection from './pages/AllImageDetection';
+import AIImageDetection from './pages/AIImageDetection';
 import SecurityAwareness from './pages/SecurityAwareness';
 import Settings from './pages/Settings';
 
@@ -57,3 +57,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
