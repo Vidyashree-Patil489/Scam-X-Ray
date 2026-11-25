@@ -4,7 +4,7 @@ import os
 import re
 from flask import Flask, request, jsonify
 import tempfile
-from services.image_detector import detect_image
+from services.smaug_detector import detect_image
 
 
 from flask_cors import CORS

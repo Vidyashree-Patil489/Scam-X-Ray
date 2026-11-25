@@ -9,3 +9,5 @@ transformers
 torch
 torchvision
 Pillow
+sentence-transformers[image]
+huggingface_hub
